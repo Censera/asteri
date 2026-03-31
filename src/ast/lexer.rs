@@ -99,6 +99,7 @@ impl <'a> Lexer<'a> {
     if self.current_pos >= self.input.len() {
       return None;
     }
+    self.current_pos += 1;
     Some(c)
   }
 
