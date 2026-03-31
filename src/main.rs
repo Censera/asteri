@@ -1,7 +1,7 @@
 mod ast;
 
 fn main() {
-    let input = "4";
+    let input = "4 6 64 33 7 ";
 
     let mut lexer = ast::lexer::Lexer::new(input);
     let mut tokens = Vec::new();

@@ -28,7 +28,7 @@ impl TextSpan {
   }
 
   pub fn len(&self) -> usize {
-    self.start - self.end
+    self.end - self.start
   }
 }
 
@@ -54,20 +54,23 @@ pub struct Lexer<'a> {
 
 impl <'a> Lexer<'a> {
   pub fn new(input: &'a str) -> Self {
-    Self { input, current_pos: 0 }
+    Self {
+      input, 
+      current_pos: 0,
+    }
   }
 
   pub fn next_token(&mut self) -> Option<Token> {
-    
-    if self.current_pos > self.input.len() {
+   if self.current_pos > self.input.len() {
       return None;
     }
 
     if self.current_pos == self.input.len() {
+      let end_of_file: char = '\n';
       self.current_pos += 1;
       return Some(Token::new(
           TokenKind::EOF,
-          TextSpan::new(0, 0, '\0'.to_string())
+          TextSpan::new(0, 0, end_of_file.to_string())
       ));
     }
 
@@ -102,7 +105,7 @@ impl <'a> Lexer<'a> {
   fn consume_number(&mut self) -> i64 {
     let mut number: i64 = 0;
     while let Some(c) = self.consume() {
-      if c.is_digit(10) {
+      if c.to_digit(10).is_some() {
         number = number * 10 + c.to_digit(10).unwrap() as i64;
       } else { 
           break;
