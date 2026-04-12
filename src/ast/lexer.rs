@@ -1,14 +1,14 @@
 #[derive(Debug)]
 pub enum TokenKind {
-  Astri,
-  Slash,
-  Plus,
-  Minus,
-  RightParen,
-  LeftParen,
-  Number(i64),  
-  Unknown,
-  EOF,
+  Astri,                // *
+  Slash,                // /
+  Plus,                 // +
+  Minus,                // -
+  RightParen,           // )
+  LeftParen,            // (
+  Number(i64),          // 0..9
+  Unknown,              // _
+  EOF,                  // End of File '\0'
 }
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl TextSpan {
     }
   }
 
-  pub fn len(&self) -> usize {
+  pub fn length(&self) -> usize {
     self.end - self.start
   }
 }
@@ -61,52 +61,55 @@ impl <'a> Lexer<'a> {
   }
 
   pub fn next_token(&mut self) -> Option<Token> {
-   if self.current_pos > self.input.len() {
+    if self.current_pos > self.input.len() {
       return None;
     }
-
     if self.current_pos == self.input.len() {
-      let end_of_file: char = '\n';
       self.current_pos += 1;
       return Some(Token::new(
           TokenKind::EOF,
-          TextSpan::new(0, 0, end_of_file.to_string())
+          TextSpan::new(0, 0, '\0'.to_string())
       ));
     }
 
-    let start: usize = self.current_pos;
-    let c: char = self.current_char();
-    let mut kind = TokenKind::Unknown;
-    if Self::is_number_start(&c) {
-      let number: i64 = self.consume_number();
-      kind = TokenKind::Number(number);
-    }
+  let c = self.current_char();
+    return c.map(|c| {
+      let start = self.current_pos;
+      let mut kind = TokenKind::Unknown;
+      if Self::is_number_start(&c) {
+        let number: i64 = self.consume_number();
+        kind = TokenKind::Number(number);
+      } else {
+      self.consume();
+      }
     
-    let end: usize = self.current_pos;
-    let literal: String = self.input[start..end].to_string();
-    let span  =  TextSpan::new(start, end, literal);
-    Some(Token::new(kind, span))
+      let end: usize = self.current_pos;
+      let literal: String = self.input[start..end].to_string();
+      let span  =  TextSpan::new(start, end, literal);
+      Token::new(kind, span)
+    });
   }
-  
   fn is_number_start(c: &char) -> bool {
     c.is_digit(10)
   }
-  fn current_char(&self) -> char {
-    self.input.chars().nth(self.current_pos).unwrap()
+  fn current_char(&self) -> Option<char> {
+    self.input.chars().nth(self.current_pos)
   }
   fn consume(&mut self) -> Option<char> {
-    let c: char = self.current_char();
     if self.current_pos >= self.input.len() {
       return None;
     }
+    let c = self.current_char();
     self.current_pos += 1;
-    Some(c)
+    
+    c
   }
 
   fn consume_number(&mut self) -> i64 {
     let mut number: i64 = 0;
-    while let Some(c) = self.consume() {
+    while let Some(c) = self.current_char() {
       if c.to_digit(10).is_some() {
+        self.consume().unwrap();
         number = number * 10 + c.to_digit(10).unwrap() as i64;
       } else { 
           break;
@@ -115,6 +118,3 @@ impl <'a> Lexer<'a> {
     number
   }
 }
-
-
-
