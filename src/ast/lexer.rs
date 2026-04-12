@@ -1,57 +1,65 @@
 #[derive(Debug)]
 pub enum TokenKind {
-  Asteri,               // *
-  DoubleQuote,
-  SemiComma,
+  // Literals
+  Int(isize),
+  // Operators
+  Asteri,
+  Dot,
+  Comma,
+  Colon,
+  Semicolon,
   Bang,
+  Huh,
+  At,
+  Caret,
+  Ampersand,
+  Minus,
+  Underscore,
+  Plus,
+  Equals,
+  Slash,
+  Pipe,
+  Tilde,
+  SingleQuote,
+  LessThan,
+  GreaterThan,
+  OpeningBrace,
+  ClosingBrace,
+  OpeningParen,
+  ClosingParen,
+  OpeningBracket,
+  ClosingBracket,
+
+  // Keywords
   Let,
   Constant,
-  Comma,
-  Equal,
-  EqualEqual,
-  Colon,
-  Arrow,
-  True,
-  False,
   If,
   Else,
-  Switch,
-  Function,
   While,
-  Return,
   Match,
-  Slash,
-  Plus,
-  Minus,
-  RightParen,
-  LeftParen,
-  OpenBrace,
-  CloseBrace,
-  GreaterThan,
-  LessThan,
-  GreaterEqual,
-  LessEqual,
-  Public,
-  Private,
+  Break,
+  Return,
+  Continure,
+  True,
+  False,
+  Null,
+  New,
   Class,
-  Tilde,
-  Caret,
-  At,
-  Dot,
-  Boolean(bool),
-  Character(char),
-  Decimal(u32),
+  Function,
+  Pub,
+  Pri,
+  Enum,
+  Struct,
+  Using,
   Print,
+  Read,
   Warn,
   Error,
-  Read,
-  Sort,
-  Str(String),
-  File,
   Open,
   Close,
-  Integer(i64),
-  Whitespace,
+  Sort,
+
+  // Other
   Unknown,
   EOF,
   Id,
@@ -71,10 +79,6 @@ impl TextSpan {
       end,
       literal
     }
-  }
-
-  pub fn length(&self) -> usize {
-    self.end - self.start
   }
 }
 
@@ -107,6 +111,10 @@ impl <'a> Lexer<'a> {
   }
 
   pub fn next_token(&mut self) -> Option<Token> {
+    while matches!(self.current_char(), Some(c) if c.is_whitespace()) {
+      self.swallow();
+    }
+
     if self.current > self.input.len() {
       return None;
     }
@@ -123,12 +131,13 @@ impl <'a> Lexer<'a> {
       let start = self.current;
       let mut kind = TokenKind::Unknown;
     if c.is_digit(10) {
-        let number: i64 = self.swallow_number();
-        kind = TokenKind::Integer(number);
+        let number: isize = self.swallow_number();
+        kind = TokenKind::Int(number);
       } else if c.is_whitespace() {
-        self.swallow();
-        kind = TokenKind::Whitespace;
-      } else if c.is_alphabetic() || c == '_' {
+        while let Some(c) = self.current_char() {
+          if c.is_whitespace() { self.swallow(); } else { break; }
+        }
+      } else if c.is_alphabetic() || c == '_' || c.is_digit(10) {
         let id = self.swallow_id();
         kind = match id.as_str() {
           "let"     => TokenKind::Let,
@@ -136,7 +145,6 @@ impl <'a> Lexer<'a> {
           "if"      => TokenKind::If,
           "else"    => TokenKind::Else,
           "while"   => TokenKind::While,
-          "switch"  => TokenKind::Switch,
           "match"   => TokenKind::Match,
           "print"   => TokenKind::Print,
           "read"    => TokenKind::Read,
@@ -149,13 +157,36 @@ impl <'a> Lexer<'a> {
           "false"   => TokenKind::False,
           "class"   => TokenKind::Class,
           "return"  => TokenKind::Return,
-          "pub"     => TokenKind::Public,
-          "pri"     => TokenKind::Private,
+          "pub"     => TokenKind::Pub,
+          "pri"     => TokenKind::Pri,
           "fun"     => TokenKind::Function,
           _         => TokenKind::Id,
         }
       } else {
         self.swallow();
+        kind = match c {
+          '+'      => TokenKind::Plus,
+          '-'      => TokenKind::Minus,
+          '*'      => TokenKind::Asteri,
+          '/'      => TokenKind::Slash,
+          ','      => TokenKind::Comma,
+          ':'      => TokenKind::Colon,
+          ';'      => TokenKind::Semicolon,
+          '@'      => TokenKind::At,
+          '^'      => TokenKind::Caret,
+          '='      => TokenKind::Equals,
+          '|'      => TokenKind::Pipe,
+          '~'      => TokenKind::Tilde,
+          '<'      => TokenKind::LessThan,
+          '>'      => TokenKind::GreaterThan,
+          '('      => TokenKind::OpeningParen,
+          ')'      => TokenKind::ClosingParen,
+          '{'      => TokenKind::OpeningBrace,
+          '}'      => TokenKind::ClosingBrace,
+          '['      => TokenKind::OpeningBracket,
+          ']'      => TokenKind::ClosingBracket,
+          _        => TokenKind::Unknown,
+        }
       }
     
       let end: usize = self.current;
@@ -178,12 +209,12 @@ impl <'a> Lexer<'a> {
     c
   }
 
-  fn swallow_number(&mut self) -> i64 {
-    let mut number: i64 = 0;
+  fn swallow_number(&mut self) -> isize {
+    let mut number: isize = 0;
     while let Some(c) = self.current_char() {
       if c.to_digit(10).is_some() {
         self.swallow().unwrap();
-        number = number * 10 + c.to_digit(10).unwrap() as i64;
+        number = number * 10 + c.to_digit(10).unwrap() as isize;
       } else { 
           break;
         }
@@ -194,7 +225,7 @@ impl <'a> Lexer<'a> {
   fn swallow_id(&mut self) -> String {
     let mut id = String::new();
     while let Some(c) = self.current_char() {
-      if c.is_alphabetic() {
+      if c.is_alphabetic() || c == '_' || c.is_digit(10) {
         self.swallow().unwrap();
         id.push(c);
       } else { break; }
