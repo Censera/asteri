@@ -1,7 +1,7 @@
 mod ast;
 
 fn main() {
-  let input = r#"-> "Hello, world!"        &&a hola || | == <= >= !="ada"#;
+  let input = r#"-> "Hello, world!" a'h'b       &&a hola || | == <= >= !="ada""#;
 
     let mut lexer = ast::lexer::Lexer::new(input);
     let mut tokens = Vec::new();

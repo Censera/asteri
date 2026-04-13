@@ -3,6 +3,7 @@ pub enum TokenKind {
   // Literals
   Int(isize),
   Str(String),
+  Char(char),
 
   // Operators
   Asteri,
@@ -10,7 +11,6 @@ pub enum TokenKind {
   Comma,
   Colon,
   Semicolon,
-  Bang,
   Huh,
   At,
   Caret,
@@ -38,7 +38,6 @@ pub enum TokenKind {
   EqualEqual,
   LessOrEqual,
   GreaterOrEqual,
-  Comment,
   TwoPipes,
   TwoAmpersands,
 
@@ -201,6 +200,7 @@ impl <'a> Lexer<'a> {
           '['      => TokenKind::OpeningBracket,
           ']'      => TokenKind::ClosingBracket,
           '"'      => self.string(start),
+          '\''     => self.a_char(start),
           _        => TokenKind::Unknown,
         }
       }
@@ -228,9 +228,9 @@ impl <'a> Lexer<'a> {
   fn swallow_number(&mut self) -> isize {
     let mut number: isize = 0;
     while let Some(c) = self.current_char() {
-      if c.to_digit(10).is_some() {
+      if c.is_digit(10) {
         self.swallow().unwrap();
-        number = number * 10 + c.to_digit(10).unwrap() as isize;
+        number = number * 10 + c.is_digit(10) as isize;
       } else { 
           break;
         }
@@ -263,25 +263,46 @@ impl <'a> Lexer<'a> {
   }
 
   fn string(&mut self, start: usize) -> TokenKind {
-    let mut end = start;
-    while (self.current_char() != Some('"')) && !self.is_EOF() {
+    while (self.current_char() != Some('"')) && !self.is_eof() {
       self.swallow();
-      end += 1;
     }
+
+    if self.current_char() != Some('"') {
+      panic!("expected closing double qoutes");
+    }
+
     self.swallow();
 
-    let content: String = self.input[(start + 1)..(end)].to_string();
+    let content: String = self.input[(start + 1)..(self.current - 1)].to_string();
     TokenKind::Str(content)
   } 
 
-  fn comment(&mut self) -> TokenKind {
-    while (self.current_char() != Some('\n')) && !self.is_EOF() {
-      self.swallow();
+  fn a_char(&mut self, start: usize) -> TokenKind {
+    let c = match self.current_char() {
+      Some('\\') => {
+        self.swallow();
+        match self.current_char() {
+          Some('n')   => { self.swallow(); '\n' }
+          Some('t')   => { self.swallow(); '\t' }
+          Some('r')   => { self.swallow(); '\r' }
+          Some('\'')  => { self.swallow(); '\'' }
+          Some('\\')  => { self.swallow(); '\\' }
+          other       => panic!("unexpected character, {:?}", other),
+        }
+      }
+      Some(ch) if !ch.is_whitespace() => { self.swallow(); ch }
+      _ => panic!("invalid character"),
+    };
+
+    if self.current_char() != Some('\'') {
+      panic!("expected closing quote");
     }
-    TokenKind::Comment
+    self.swallow();
+    
+    TokenKind::Char(c)
   }
 
-  fn is_EOF(&self) -> bool{
+  fn is_eof(&self) -> bool{
     self.current >= self.input.len()
   }
 }
