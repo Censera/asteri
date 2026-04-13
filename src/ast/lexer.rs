@@ -73,7 +73,7 @@ pub enum TokenKind {
   // Other
   Unknown,
   EOF,
-  Id,
+  Id(String),
 }
 
 #[derive(Debug)]
@@ -171,7 +171,7 @@ impl <'a> Lexer<'a> {
           "pub"     => TokenKind::Pub,
           "pri"     => TokenKind::Pri,
           "fun"     => TokenKind::Function,
-          _         => TokenKind::Id,
+          _         => TokenKind::Id("id".to_string()),
         }
       } else {
         self.swallow();
@@ -230,7 +230,7 @@ impl <'a> Lexer<'a> {
     while let Some(c) = self.current_char() {
       if c.is_digit(10) {
         self.swallow().unwrap();
-        number = number * 10 + c.is_digit(10) as isize;
+        number = number * 10 + (c as isize - '0' as isize);
       } else { 
           break;
         }
@@ -268,7 +268,7 @@ impl <'a> Lexer<'a> {
     }
 
     if self.current_char() != Some('"') {
-      panic!("expected closing double qoutes");
+      panic!("expected closing double quotes");
     }
 
     self.swallow();
