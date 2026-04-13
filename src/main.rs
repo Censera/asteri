@@ -1,7 +1,7 @@
 mod ast;
 
 fn main() {
-  let input = r#"print sort ++ ==  warn @~/*-+e 'E3F_geth' 57|| 4 class fun"#;
+  let input = r#"-> "Hello, world!"        &&a hola || | == <= >= !="ada"#;
 
     let mut lexer = ast::lexer::Lexer::new(input);
     let mut tokens = Vec::new();

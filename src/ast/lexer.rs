@@ -2,6 +2,8 @@
 pub enum TokenKind {
   // Literals
   Int(isize),
+  Str(String),
+
   // Operators
   Asteri,
   Dot,
@@ -16,7 +18,7 @@ pub enum TokenKind {
   Minus,
   Underscore,
   Plus,
-  Equals,
+  Equal,
   Slash,
   Pipe,
   Tilde,
@@ -29,6 +31,16 @@ pub enum TokenKind {
   ClosingParen,
   OpeningBracket,
   ClosingBracket,
+
+  // Compound Char
+  Arrow,
+  NotEqual,
+  EqualEqual,
+  LessOrEqual,
+  GreaterOrEqual,
+  Comment,
+  TwoPipes,
+  TwoAmpersands,
 
   // Keywords
   Let,
@@ -166,7 +178,7 @@ impl <'a> Lexer<'a> {
         self.swallow();
         kind = match c {
           '+'      => TokenKind::Plus,
-          '-'      => TokenKind::Minus,
+          '-'      => self.is_compound('>', TokenKind::Arrow, TokenKind::Minus),
           '*'      => TokenKind::Asteri,
           '/'      => TokenKind::Slash,
           ','      => TokenKind::Comma,
@@ -174,17 +186,21 @@ impl <'a> Lexer<'a> {
           ';'      => TokenKind::Semicolon,
           '@'      => TokenKind::At,
           '^'      => TokenKind::Caret,
-          '='      => TokenKind::Equals,
-          '|'      => TokenKind::Pipe,
+          '?'      => TokenKind::Huh,
+          '='      => self.is_compound('=', TokenKind::EqualEqual, TokenKind::Equal),
+          '!'      => self.is_compound('=', TokenKind::NotEqual, TokenKind::Unknown),
+          '|'      => self.is_compound('|', TokenKind::TwoPipes, TokenKind::Pipe),
+          '&'      => self.is_compound('&', TokenKind::TwoAmpersands, TokenKind::Ampersand),
           '~'      => TokenKind::Tilde,
-          '<'      => TokenKind::LessThan,
-          '>'      => TokenKind::GreaterThan,
+          '<'      => self.is_compound('=', TokenKind::LessOrEqual, TokenKind::LessThan),
+          '>'      => self.is_compound('=', TokenKind::GreaterOrEqual, TokenKind::GreaterThan),
           '('      => TokenKind::OpeningParen,
           ')'      => TokenKind::ClosingParen,
           '{'      => TokenKind::OpeningBrace,
           '}'      => TokenKind::ClosingBrace,
           '['      => TokenKind::OpeningBracket,
           ']'      => TokenKind::ClosingBracket,
+          '"'      => self.string(start),
           _        => TokenKind::Unknown,
         }
       }
@@ -231,5 +247,41 @@ impl <'a> Lexer<'a> {
       } else { break; }
     }
     id
+  }
+
+  fn is_compound( &mut self,
+                  expected: char,
+                  compound_operator: TokenKind,
+                  operator: TokenKind )
+                  -> TokenKind {
+    if let Some(next) = self.current_char() {
+      if next == expected {
+        self.swallow();
+        compound_operator
+      } else { operator }
+    }   else { operator }
+  }
+
+  fn string(&mut self, start: usize) -> TokenKind {
+    let mut end = start;
+    while (self.current_char() != Some('"')) && !self.is_EOF() {
+      self.swallow();
+      end += 1;
+    }
+    self.swallow();
+
+    let content: String = self.input[(start + 1)..(end)].to_string();
+    TokenKind::Str(content)
+  } 
+
+  fn comment(&mut self) -> TokenKind {
+    while (self.current_char() != Some('\n')) && !self.is_EOF() {
+      self.swallow();
+    }
+    TokenKind::Comment
+  }
+
+  fn is_EOF(&self) -> bool{
+    self.current >= self.input.len()
   }
 }
