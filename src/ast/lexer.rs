@@ -4,6 +4,9 @@ pub enum TokenKind {
   Int(isize),
   Str(String),
   Char(char),
+  
+  // Types
+  Type(Types),
 
   // Operators
   Asteri,
@@ -94,6 +97,14 @@ impl TextSpan {
 }
 
 #[derive(Debug)]
+pub enum Types {
+  String,
+  Boolean,
+  Char,
+  Int,
+} 
+
+#[derive(Debug)]
 pub struct Token {
   kind: TokenKind,
   span: TextSpan,
@@ -171,6 +182,10 @@ impl <'a> Lexer<'a> {
           "pub"     => TokenKind::Pub,
           "pri"     => TokenKind::Pri,
           "fun"     => TokenKind::Function,
+          "int"     => TokenKind::Type(Types::Int),
+          "bool"    => TokenKind::Type(Types::Boolean),
+          "string"  => TokenKind::Type(Types::String),
+          "char"    => TokenKind::Type(Types::Char),
           _         => TokenKind::Id("id".to_string()),
         }
       } else {
@@ -181,6 +196,7 @@ impl <'a> Lexer<'a> {
           '*'      => TokenKind::Asteri,
           '/'      => TokenKind::Slash,
           ','      => TokenKind::Comma,
+          '.'      => TokenKind::Dot,
           ':'      => TokenKind::Colon,
           ';'      => TokenKind::Semicolon,
           '@'      => TokenKind::At,
