@@ -121,6 +121,7 @@ impl Token {
 
 pub struct Lexer<'a> {
   input: &'a str,
+  chars: Vec<char>,
   current: usize,
 }
 
@@ -128,6 +129,7 @@ impl <'a> Lexer<'a> {
   pub fn new(input: &'a str) -> Self {
     Self {
       input, 
+      chars: input.chars().collect(),
       current: 0,
     }
   }
@@ -137,7 +139,7 @@ impl <'a> Lexer<'a> {
       self.swallow();
     }
 
-    if self.current > self.input.len() {
+    if self.is_eof() {
       return None;
     }
     if self.current == self.input.len() {
@@ -153,14 +155,10 @@ impl <'a> Lexer<'a> {
       let start = self.current;
       let mut kind = TokenKind::Unknown;
     if c.is_digit(10) {
-        let number: isize = self.swallow_number();
+        let number: isize = self.consume_number();
         kind = TokenKind::Int(number);
-      } else if c.is_whitespace() {
-        while let Some(c) = self.current_char() {
-          if c.is_whitespace() { self.swallow(); } else { break; }
-        }
       } else if c.is_alphabetic() || c == '_' || c.is_digit(10) {
-        let id = self.swallow_id();
+        let id = self.consume_id();
         kind = match id.as_str() {
           "let"     => TokenKind::Let,
           "const"   => TokenKind::Constant,
@@ -229,19 +227,19 @@ impl <'a> Lexer<'a> {
   }
 
   fn current_char(&self) -> Option<char> {
-    self.input.chars().nth(self.current)
+    self.chars.get(self.current).copied()
   }
   fn swallow(&mut self) -> Option<char> {
-    if self.current >= self.input.len() {
+    if self.current >= self.chars.len() {
       return None;
     }
-    let c = self.current_char();
+    let c = self.chars[self.current];
     self.current += 1;
     
-    c
+    Some(c)
   }
 
-  fn swallow_number(&mut self) -> isize {
+  fn consume_number(&mut self) -> isize {
     let mut number: isize = 0;
     while let Some(c) = self.current_char() {
       if c.is_digit(10) {
@@ -254,7 +252,7 @@ impl <'a> Lexer<'a> {
     number
   }
 
-  fn swallow_id(&mut self) -> String {
+  fn consume_id(&mut self) -> String {
     let mut id = String::new();
     while let Some(c) = self.current_char() {
       if c.is_alphabetic() || c == '_' || c.is_digit(10) {
