@@ -186,7 +186,7 @@ impl <'a> Lexer<'a> {
           "bool"    => TokenKind::Type(Types::Boolean),
           "string"  => TokenKind::Type(Types::String),
           "char"    => TokenKind::Type(Types::Char),
-          _         => TokenKind::Id("id".to_string()),
+          _         => TokenKind::Id(id),
         }
       } else {
         self.swallow();
