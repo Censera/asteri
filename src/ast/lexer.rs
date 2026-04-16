@@ -139,10 +139,10 @@ impl <'a> Lexer<'a> {
       self.swallow();
     }
 
-    if self.is_eof() {
+    if self.current > self.chars.len() {
       return None;
     }
-    if self.current == self.input.len() {
+    if self.current == self.chars.len() {
       self.current += 1;
       return Some(Token::new(
           TokenKind::EOF,
@@ -213,8 +213,8 @@ impl <'a> Lexer<'a> {
           '}'      => TokenKind::ClosingBrace,
           '['      => TokenKind::OpeningBracket,
           ']'      => TokenKind::ClosingBracket,
-          '"'      => self.string(start),
-          '\''     => self.a_char(start),
+          '"'      => self.string_token(),
+          '\''     => self.char_token(),
           _        => TokenKind::Unknown,
         }
       }
@@ -276,22 +276,20 @@ impl <'a> Lexer<'a> {
     }   else { operator }
   }
 
-  fn string(&mut self, start: usize) -> TokenKind {
+  fn string_token(&mut self) -> TokenKind {
+    let mut content = String::new();
     while (self.current_char() != Some('"')) && !self.is_eof() {
-      self.swallow();
+      content.push(self.swallow().unwrap());
     }
-
     if self.current_char() != Some('"') {
       panic!("expected closing double quotes");
     }
 
     self.swallow();
-
-    let content: String = self.input[(start + 1)..(self.current - 1)].to_string();
     TokenKind::Str(content)
   } 
 
-  fn a_char(&mut self, start: usize) -> TokenKind {
+  fn char_token(&mut self) -> TokenKind {
     let c = match self.current_char() {
       Some('\\') => {
         self.swallow();
@@ -317,6 +315,6 @@ impl <'a> Lexer<'a> {
   }
 
   fn is_eof(&self) -> bool{
-    self.current >= self.input.len()
+    self.current >= self.chars.len()
   }
 }
