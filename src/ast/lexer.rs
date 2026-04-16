@@ -53,7 +53,7 @@ pub enum TokenKind {
   Match,
   Break,
   Return,
-  Continure,
+  Continue,
   True,
   False,
   Null,
