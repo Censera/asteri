@@ -226,7 +226,6 @@ impl <'a> Lexer<'a> {
           '~'      => TokenKind::Tilde,
           '<'      => self.is_compound('=', TokenKind::LessOrEqual, TokenKind::LessThan),
           '>'      => self.is_compound('=', TokenKind::GreaterOrEqual, TokenKind::GreaterThan),
-          '_'      => TokenKind::Underscore,
           '('      => TokenKind::OpeningParen,
           ')'      => TokenKind::ClosingParen,
           '{'      => TokenKind::OpeningBrace,
