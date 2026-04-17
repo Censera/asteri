@@ -4,7 +4,7 @@ pub enum TokenKind {
   Int(isize),
   Str(String),
   Char(char),
-  
+  Float(f64),
   // Types
   Type(Types),
 
@@ -25,7 +25,6 @@ pub enum TokenKind {
   Slash,
   Pipe,
   Tilde,
-  SingleQuote,
   LessThan,
   GreaterThan,
   OpeningBrace,
@@ -46,7 +45,7 @@ pub enum TokenKind {
 
   // Keywords
   Let,
-  Constant,
+  Const,
   If,
   Else,
   While,
@@ -56,17 +55,19 @@ pub enum TokenKind {
   Continue,
   True,
   False,
-  Null,
+  None,
   New,
-  Class,
-  Function,
+  Form,
+  Fun,
   Pub,
   Pri,
   Enum,
   Struct,
   Using,
   Print,
+  Write,
   Read,
+  Append,
   Warn,
   Error,
   Open,
@@ -98,10 +99,10 @@ impl TextSpan {
 
 #[derive(Debug)]
 pub enum Types {
-  String,
-  Boolean,
-  Char,
-  Int,
+  I8, I16, I32, I64,
+  U8, U16, U32, U64,
+  F32, F64,
+  String, Boolean, Char, File
 } 
 
 #[derive(Debug)]
@@ -153,15 +154,14 @@ impl <'a> Lexer<'a> {
   let c = self.current_char();
     return c.map(|c| {
       let start = self.current;
-      let mut kind = TokenKind::Unknown;
+      let mut kind: TokenKind;
     if c.is_digit(10) {
-        let number: isize = self.consume_number();
-        kind = TokenKind::Int(number);
+        kind = self.consume_number();
       } else if c.is_alphabetic() || c == '_' || c.is_digit(10) {
         let id = self.consume_id();
         kind = match id.as_str() {
           "let"     => TokenKind::Let,
-          "const"   => TokenKind::Constant,
+          "const"   => TokenKind::Const,
           "if"      => TokenKind::If,
           "else"    => TokenKind::Else,
           "while"   => TokenKind::While,
@@ -175,12 +175,31 @@ impl <'a> Lexer<'a> {
           "sort"    => TokenKind::Sort,
           "true"    => TokenKind::True,
           "false"   => TokenKind::False,
-          "class"   => TokenKind::Class,
+          "form"    => TokenKind::Form,
+          "new"     => TokenKind::New,
           "return"  => TokenKind::Return,
+          "break"   => TokenKind::Break,
+          "continue"=> TokenKind::Continue, 
+          "using"   => TokenKind::Using,
           "pub"     => TokenKind::Pub,
+          "enum"    => TokenKind::Enum,
+          "struct"  => TokenKind::Struct,
           "pri"     => TokenKind::Pri,
-          "fun"     => TokenKind::Function,
-          "int"     => TokenKind::Type(Types::Int),
+          "fun"     => TokenKind::Fun,
+          "none"    => TokenKind::None,
+          "file"    => TokenKind::Type(Types::File),
+          "int"     => TokenKind::Type(Types::I32),
+          "i8"      => TokenKind::Type(Types::I8),
+          "i16"     => TokenKind::Type(Types::I16),
+          "i32"     => TokenKind::Type(Types::I32),
+          "i64"     => TokenKind::Type(Types::I64),
+          "u8"      => TokenKind::Type(Types::U8),
+          "u16"     => TokenKind::Type(Types::U16),
+          "u32"     => TokenKind::Type(Types::U32),
+          "u64"     => TokenKind::Type(Types::U64),
+          "float"   => TokenKind::Type(Types::F32),
+          "f32"     => TokenKind::Type(Types::F32),
+          "f64"     => TokenKind::Type(Types::F64),
           "bool"    => TokenKind::Type(Types::Boolean),
           "string"  => TokenKind::Type(Types::String),
           "char"    => TokenKind::Type(Types::Char),
@@ -207,6 +226,7 @@ impl <'a> Lexer<'a> {
           '~'      => TokenKind::Tilde,
           '<'      => self.is_compound('=', TokenKind::LessOrEqual, TokenKind::LessThan),
           '>'      => self.is_compound('=', TokenKind::GreaterOrEqual, TokenKind::GreaterThan),
+          '_'      => TokenKind::Underscore,
           '('      => TokenKind::OpeningParen,
           ')'      => TokenKind::ClosingParen,
           '{'      => TokenKind::OpeningBrace,
@@ -220,7 +240,7 @@ impl <'a> Lexer<'a> {
       }
     
       let end: usize = self.current;
-      let literal: String = self.input[start..end].to_string();
+      let literal: String = self.chars[start..end].iter().collect();
       let span  =  TextSpan::new(start, end, literal);
       Token::new(kind, span)
     });
@@ -239,17 +259,46 @@ impl <'a> Lexer<'a> {
     Some(c)
   }
 
-  fn consume_number(&mut self) -> isize {
-    let mut number: isize = 0;
-    while let Some(c) = self.current_char() {
-      if c.is_digit(10) {
+  fn consume_number(&mut self) -> TokenKind
+  {
+    let mut int_part: isize = 0;
+    while let Some(c) = self.current_char()
+    {
+      if c.is_digit(10)
+      {
         self.swallow().unwrap();
-        number = number * 10 + (c as isize - '0' as isize);
-      } else { 
-          break;
-        }
+        int_part = int_part * 10 + (c as isize - '0' as isize);
+      }
+      else
+      {
+        break;
+      }
     }
-    number
+    if self.current_char() == Some('.')
+    {
+      let next_char = self.chars.get(self.current +1).copied();
+      if next_char.map_or(false, |c| c.is_digit(10))
+      {
+        self.swallow();
+        let mut fraction: f64 = 0.0;
+        let mut place = 0.1;
+        while let Some(c) = self.current_char()
+        {
+          if c.is_digit(10)
+          {
+            self.swallow();
+            fraction += (c as u8 - b'0') as f64 * place;
+            place *= 0.1;
+          }
+          else 
+          {
+            break;
+          }
+        }
+          return TokenKind::Float(int_part as f64 + fraction);
+      }
+    }
+      TokenKind::Int(int_part)
   }
 
   fn consume_id(&mut self) -> String {
