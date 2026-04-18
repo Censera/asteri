@@ -1,0 +1,21 @@
+unstable_features = true
+
+brace_style = "AlwaysNextLine"
+control_brace_style = "AlwaysNextLine"
+indent_style = "Block"
+match_block_trailing_comma = false
+
+tab_spaces = 4
+hard_tabs = true
+
+use_small_heuristics = "Off"
+array_width = 60
+attr_fn_like_width = 70
+fn_call_width = 60
+struct_lit_width = 18
+struct_variant_width = 35
+
+imports_granularity = "Item"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+reorder_modules = true
