@@ -147,9 +147,10 @@ pub enum Types
 	Bool,
 	Char,
 	File,
-  Matrix,
-  Vector2d,
-  Vector3d,
+  Matrix3x3,
+  Matrix4x4,
+  Vector2,
+  Vector3,
 }
 
 #[derive(Debug)]
@@ -265,9 +266,10 @@ impl Lexer
 				"bool"    => TokenKind::Type(Types::Bool),
 				"string"  => TokenKind::Type(Types::String),
 				"char"    => TokenKind::Type(Types::Char),
-        "vector2d"=> TokenKind::Type(Types::Vector2d),
-        "vector3d"=> TokenKind::Type(Types::Vector3d),
-        "matrix"  => TokenKind::Type(Types::Matrix),
+        "vector2" => TokenKind::Type(Types::Vector2d),
+        "vector3" => TokenKind::Type(Types::Vector3d),
+        "matrix3x3"=> TokenKind::Type(Types::Matrix3x3),
+        "matrix4x4"=> TokenKind::Type(Types::Matrix4x4),
 				        _ => TokenKind::Id(id),
 			}
 		}
