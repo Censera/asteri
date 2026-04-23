@@ -2,7 +2,10 @@ mod lexer;
 
 fn main()
 {
-	let input = r#"print "Hello, World!", !true, 43;"#;
+	let input = r#"print ' ', 'H', "ello, World!", !true, 43;
+  -- ignore this
+  "don't ignore this"
+  'hello' -- should be an error"#;
 
 	let mut lexer = lexer::Lexer::new(input);
 	let mut tokens = Vec::new();

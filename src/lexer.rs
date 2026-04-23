@@ -1,7 +1,14 @@
 use std::fmt;
 
 #[derive(Debug)]
-pub enum LexErr
+pub struct LexErr
+{
+  pub kind: LexErrKind,
+  pub line: usize,
+}
+
+#[derive(Debug)]
+pub enum LexErrKind
 {
 	UnterStr,
 	UnterCha,
@@ -12,20 +19,28 @@ pub enum LexErr
 // Error handling
 impl fmt::Display for LexErr
 {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+  {
+    write!(f, "line {}: {}", self.line, self.kind)
+  }
+}
+
+impl fmt::Display for LexErrKind
+{
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
 	{
 		match self
 		{
-			LexErr::UnterStr => write!(f, "unterminated string literal"),
-			LexErr::UnterCha => write!(f, "unterminated char literal"),
-			LexErr::InvEsc(c) => write!(f, "invalid escape sequence: \\{}", c),
-			LexErr::InvCha => write!(f, "invalid character"),
-		}
+			LexErrKind::UnterStr  => write!(f, "unterminated string literal"),
+			LexErrKind::UnterCha  => write!(f, "unterminated char literal"),
+			LexErrKind::InvEsc(c) => write!(f, "invalid escape sequence: \\{}", c),
+			LexErrKind::InvCha    => write!(f, "invalid character"),
+    }
 	}
 }
 
 impl std::error::Error for LexErr {}
-
+impl std::error::Error for LexErrKind {}
 // Tokens
 #[derive(Debug)]
 pub enum TokenKind
@@ -67,7 +82,7 @@ pub enum TokenKind
 
 	// Compound Char
 	Arrow,
-	NotEqual,
+  NotEqual,
 	EqualEqual,
 	LessOrEqual,
 	GreaterOrEqual,
@@ -117,16 +132,18 @@ pub struct TextSpan
 	start: usize,
 	end: usize,
 	literal: String,
+  line: usize,
 }
 
 impl TextSpan
 {
-	pub fn new(start: usize, end: usize, literal: String) -> Self
+	pub fn new(start: usize, end: usize, literal: String, line: usize) -> Self
 	{
 		Self {
 			start,
 			end,
 			literal,
+      line,
 		}
 	}
 }
@@ -157,8 +174,8 @@ pub enum Types
 #[derive(Debug)]
 pub struct Token
 {
-	kind: TokenKind,
-	span: TextSpan,
+	pub kind: TokenKind,
+	pub span: TextSpan,
 }
 
 impl Token
@@ -173,6 +190,7 @@ pub struct Lexer
 {
 	chars: Vec<char>,
 	current: usize,
+  line: usize,
 }
 
 impl Lexer
@@ -182,6 +200,7 @@ impl Lexer
 		Self {
 			chars: input.chars().collect(),
 			current: 0,
+      line: 1,
 		}
 	}
 
@@ -192,6 +211,16 @@ impl Lexer
 			self.swallow();
 		}
 
+    if self.current_char() == Some('-')
+    && self.chars.get(self.current + 1).copied() == Some('-')
+    {
+      while self.current_char() != Some('\n') && !self.is_eof()
+      {
+        self.swallow();
+      }
+      return self.next_token();
+    }
+
 		if self.current > self.chars.len()
 		{
 			return None;
@@ -201,7 +230,7 @@ impl Lexer
 			self.current += 1;
 			return Some(Ok(Token::new(
 				TokenKind::EOF,
-				TextSpan::new(0, 0, '\0'.to_string()),
+				TextSpan::new(0, 0, '\0'.to_string(), self.line),
 			)));
 		}
 
@@ -313,7 +342,7 @@ impl Lexer
 					};
 					let end = self.current; // record the end of the string literal
 					let literal = self.chars[start..end].iter().collect();
-					return Some(Ok(Token::new(kind, TextSpan::new(start, end, literal))));
+					return Some(Ok(Token::new(kind, TextSpan::new(start, end, literal, self.line))));
 				}
 				'\'' =>
 				{
@@ -324,21 +353,22 @@ impl Lexer
 					};
 					let end = self.current; // end char
 					let literal = self.chars[start..end].iter().collect();
-					return Some(Ok(Token::new(kind, TextSpan::new(start, end, literal))));
+					return Some(Ok(Token::new(kind, TextSpan::new(start, end, literal, self.line))));
 				}
-				_ => TokenKind::Unknown,
+				_ => return Some(Err(self.err(LexErrKind::InvCha))),
 			}
 		};
 
 		let end = self.current;
 		let literal = self.chars[start..end].iter().collect();
-		Some(Ok(Token::new(kind, TextSpan::new(start, end, literal))))
+		Some(Ok(Token::new(kind, TextSpan::new(start, end, literal, self.line))))
 	}
 
 	fn current_char(&self) -> Option<char>
 	{
 		self.chars.get(self.current).copied()
 	}
+
 	fn swallow(&mut self) -> Option<char>
 	{
 		if self.current >= self.chars.len()
@@ -347,7 +377,7 @@ impl Lexer
 		}
 		let c = self.chars[self.current];
 		self.current += 1;
-
+    if c == '\n' { self.line += 1; }
 		Some(c)
 	}
 
@@ -441,68 +471,53 @@ impl Lexer
 		let mut content = String::new();
 		while (self.current_char() != Some('"')) && !self.is_eof()
 		{
-			content.push(self.swallow().unwrap());
+			content.push(self.consume_escape()?);
 		}
 		if self.current_char() != Some('"')
 		{
-			return Err(LexErr::UnterStr);
+			return Err(self.err(LexErrKind::UnterStr));
 		}
 
 		self.swallow();
 		Ok(TokenKind::Str(content))
 	}
 
+  fn consume_escape(&mut self) -> Result<char, LexErr>
+  {
+    let c = match self.current_char()
+    {
+      Some('\\') =>
+      {
+        self.swallow();
+        match self.current_char()
+        {
+          Some('n') => { self.swallow(); '\n' },
+          Some('t') => { self.swallow(); '\t' },
+          Some('r') => { self.swallow(); '\r' },
+          Some('\'') => { self.swallow(); '\'' },
+          Some('\"') => { self.swallow(); '\"' },
+          Some('\\') => { self.swallow(); '\\' },
+          other => return Err(self.err(LexErrKind::InvEsc(other.unwrap_or('\0')))),
+        }          
+      },
+      Some(ch) =>
+      {
+        self.swallow();
+        ch
+      }
+      _ => return Err(self.err(LexErrKind::InvCha)),
+    };
+    Ok(c)
+  }
+
 	fn char_token(&mut self) -> Result<TokenKind, LexErr>
 	{
-		let c = match self.current_char()
+		let c = self.consume_escape()?;
+    if self.current_char() != Some('\'')
 		{
-			Some('\\') =>
-			{
-				self.swallow();
-				match self.current_char()
-				{
-					Some('n') =>
-					{
-						self.swallow();
-						'\n'
-					}
-					Some('t') =>
-					{
-						self.swallow();
-						'\t'
-					}
-					Some('r') =>
-					{
-						self.swallow();
-						'\r'
-					}
-					Some('\'') =>
-					{
-						self.swallow();
-						'\''
-					}
-					Some('\\') =>
-					{
-						self.swallow();
-						'\\'
-					}
-					other => return Err(LexErr::InvEsc(other.unwrap_or('\0'))),
-				}
-			}
-			Some(ch) if !ch.is_whitespace() =>
-			{
-				self.swallow();
-				ch
-			}
-			_ => return Err(LexErr::InvCha),
-		};
-
-		if self.current_char() != Some('\'')
-		{
-			return Err(LexErr::UnterCha);
+			return Err(self.err(LexErrKind::UnterCha));
 		}
 		self.swallow();
-
 		Ok(TokenKind::Char(c))
 	}
 
@@ -510,4 +525,9 @@ impl Lexer
 	{
 		self.current >= self.chars.len()
 	}
+
+  fn err(&self, kind: LexErrKind) -> LexErr
+  {
+    LexErr { kind, line: self.line }
+  }
 }
