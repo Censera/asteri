@@ -1,14 +1,27 @@
 mod lexer;
+mod ast;
+mod parser;
 
-fn main()
+use std::env;
+use std::fs;
+
+fn main() -> Result<(), Box<dyn std::error::Error>>
 {
-	let input = r#"print ' ', 'H', "ello, World!", !true, 43;
-  -- ignore this
-  "don't ignore this"
-  'hello' -- should be an error"#;
 
-	let mut lexer = lexer::Lexer::new(input);
+  let args: Vec<String> = env::args().collect();
+  
+  if args.len() < 2
+  {
+    eprintln!("Use: ast <file.ast>");
+    return Ok(())
+  }
+
+  let file_path = &args[1];
+  let input = fs::read_to_string(file_path)?;
+
+	let mut lexer = lexer::Lexer::new(&input);
 	let mut tokens = Vec::new();
+
 	while let Some(result) = lexer.next_token()
 	{
 		match result
@@ -16,10 +29,11 @@ fn main()
 			Ok(token) => tokens.push(token),
 			Err(e) =>
 			{
-				eprintln!("lex error:\n{}", e);
-				break;
+				eprintln!("lex error: {}", e);
+				return Err(Box::new(e))
 			}
 		}
 	}
-	println!("{}\n{:#?}", input, tokens);
+  println!("\nSource:\n{}\n\nTokens:\n{:#?}", input, tokens);
+  Ok(())
 }
