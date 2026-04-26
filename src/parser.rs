@@ -1,5 +1,4 @@
 use crate::lexer::Token;
-use crate::ast::Expr;
 
 pub struct parser
 {

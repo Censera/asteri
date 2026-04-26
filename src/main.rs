@@ -2,13 +2,13 @@ mod lexer;
 mod ast;
 mod parser;
 
-use std::env;
-use std::fs;
+use std::env::*;
+use std::fs::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
 {
 
-  let args: Vec<String> = env::args().collect();
+  let args: Vec<String> = args().collect();
   
   if args.len() < 2
   {
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
   }
 
   let file_path = &args[1];
-  let input = fs::read_to_string(file_path)?;
+  let input = read_to_string(file_path)?;
 
 	let mut lexer = lexer::Lexer::new(&input);
 	let mut tokens = Vec::new();
