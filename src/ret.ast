@@ -1,1 +1,3 @@
-print "Hello, World;
+let n: i8 = 10; 
+print n;
+return n;

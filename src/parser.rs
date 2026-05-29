@@ -1,7 +1,13 @@
 use crate::lexer::Token;
 
-pub struct parser
-{
-  tokens: Vec<Token>,
-  current: usize,
+pub struct Parser {
+	tokens: Vec<Token>,
+	current: usize,
 }
+
+impl Parser {
+	pub fn new(tokens: Vec<Token>) -> Self {
+		Self { tokens, current: 0 }
+	}
+}
+

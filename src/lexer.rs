@@ -53,7 +53,7 @@ pub enum TokenKind
 	Type(Types),
 
 	// Operators
-	Asteri,
+	Asterisk,
 	Dot,
 	Comma,
 	Colon,
@@ -120,7 +120,6 @@ pub enum TokenKind
 	Sort,
 
 	// Other
-	Unknown,
 	EOF,
 	Id(String),
 }
@@ -310,7 +309,7 @@ impl Lexer
 			{
 				'+' => TokenKind::Plus,
 				'-' => self.is_compound('>', TokenKind::Arrow, TokenKind::Minus),
-				'*' => TokenKind::Asteri,
+				'*' => TokenKind::Asterisk,
 				'/' => TokenKind::Slash,
 				',' => TokenKind::Comma,
 				'.' => TokenKind::Dot,
@@ -471,7 +470,7 @@ impl Lexer
 		let mut content = String::new();
 		while (self.current_char() != Some('"')) && !self.is_eof()
 		{
-			content.push(self.consume_escape(self.line)?);
+			content.push(self.consume_escape(line)?);
 		}
 		if self.current_char() != Some('"')
 		{
@@ -512,7 +511,7 @@ impl Lexer
 
 	fn char_token(&mut self, line: usize) -> Result<TokenKind, LexErr>
 	{
-		let c = self.consume_escape(self.line)?;
+		let c = self.consume_escape(line)?;
     if self.current_char() != Some('\'')
 		{
 			return Err(LexErr { kind: LexErrKind::UnterCha, line: line } );
