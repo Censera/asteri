@@ -38,5 +38,5 @@ pub enum Stmt {
         tp: Types,
         value: Expr,
     },
-    Return(Expr),
+    Ret(Expr),
 }

@@ -37,7 +37,7 @@ impl Parser {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
             TokenKind::Print => self.parse_print(),
-            TokenKind::Ret => self.parse_return(),
+            TokenKind::Ret => self.parse_ret(),
             _ => Err(self.error("Unexpected Token")),
         }
     }
@@ -60,11 +60,11 @@ impl Parser {
         Ok(Stmt::Print(expr))
     }
 
-    fn parse_return(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_ret(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
         let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Return(expr))
+        Ok(Stmt::Ret(expr))
     }
 
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
@@ -117,6 +117,7 @@ impl Parser {
     fn expect_id(&mut self) -> Result<String, ParseError> {
         if let TokenKind::Id(s) = self.kind() {
             let s = s.clone();
+            self.advance();
             Ok(s)
         } else {
             Err(self.error("Expected Indetifier"))
@@ -125,26 +126,7 @@ impl Parser {
 
     fn expect_type(&mut self) -> Result<Types, ParseError> {
         if let TokenKind::Type(tp) = self.kind() {
-            let tp = match tp {
-                Types::I8 => Types::I8,
-                Types::I16 => Types::I16,
-                Types::I32 => Types::I32,
-                Types::I64 => Types::I64,
-                Types::U8 => Types::U8,
-                Types::U16 => Types::U16,
-                Types::U32 => Types::U32,
-                Types::U64 => Types::U64,
-                Types::F32 => Types::F32,
-                Types::F64 => Types::F64,
-                Types::Bool => Types::Bool,
-                Types::String => Types::String,
-                Types::Char => Types::Char,
-                Types::File => Types::File,
-                Types::Vector2 => Types::Vector2,
-                Types::Vector3 => Types::Vector3,
-                Types::Matrix3x3 => Types::Matrix3x3,
-                Types::Matrix4x4 => Types::Matrix4x4,
-            };
+            let tp = tp.clone();
             self.advance();
             Ok(tp)
         } else {
