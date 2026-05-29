@@ -1,3 +1,4 @@
-let n: i8 = 10; 
-print n;
-ret n;
+let y: i8 = 19 & 2;
+print y;
+ret;
+

@@ -29,10 +29,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    println!("Source:\n{}", input);
+    println!("Tokens:\n{:#?}", tokens);
+
     let mut parser = parser::Parser::new(tokens);
     let stmts = parser.parse()?;
-    println!("{:#?}", stmts);
 
-    //println!("\nSource:\n{}\n\nTokens:\n{:#?}", input, tokens);
+    println!("Parser:\n{:#?}", stmts);
     Ok(())
 }

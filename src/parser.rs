@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Stmt};
+use crate::ast::{BinaryOp, Expr, Stmt, UnaryOp};
 use crate::lexer::{Token, TokenKind, Types};
 
 #[derive(Debug)]
@@ -62,17 +62,66 @@ impl Parser {
 
     fn parse_ret(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
-        let expr = self.parse_expr()?;
-        self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Ret(expr))
+        if matches!(self.kind(), TokenKind::Semicolon) {
+            self.advance();
+            Ok(Stmt::Ret(None))
+        } else {
+            let expr = self.parse_expr()?;
+            self.expect(TokenKind::Semicolon)?;
+            Ok(Stmt::Ret(Some(expr)))
+        }
     }
 
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_term()?;
+        while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
+            let op = match self.kind() {
+                TokenKind::Plus => BinaryOp::Add,
+                TokenKind::Plus => BinaryOp::Sub,
+                _ => unreachable!(),
+            };
+            self.advance();
+            let right = self.parse_term()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_term(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_unary()?;
+        while matches!(self.kind(), TokenKind::Asterisk | TokenKind::Slash) {
+            let op = match self.kind() {
+                TokenKind::Asterisk => BinaryOp::Mul,
+                TokenKind::Slash => BinaryOp::Div,
+                _ => unreachable!(),
+            };
+            self.advance();
+            let right = self.parse_unary()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
-            TokenKind::Int(n) => {
-                let ex = Expr::Int(*n);
+            TokenKind::OpeningParen => {
                 self.advance();
-                Ok(ex)
+                let expr = self.parse_expr()?;
+                self.expect(TokenKind::ClosingParen)?;
+                Ok(expr)
+            }
+            TokenKind::Int(n) => {
+                let e = Expr::Int(*n);
+                self.advance();
+                Ok(e)
             }
             TokenKind::True => {
                 self.advance();
@@ -83,12 +132,78 @@ impl Parser {
                 Ok(Expr::Bool(false))
             }
             TokenKind::Id(s) => {
-                let ex = Expr::Id(s.clone());
+                let e = Expr::Id(s.clone());
                 self.advance();
-                Ok(ex)
+                Ok(e)
             }
             _ => Err(self.error("Expected Expression")),
         }
+    }
+
+    fn parse_unary(&mut self) -> Result<Expr, ParseError> {
+        match self.kind() {
+            TokenKind::Tilde => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            TokenKind::Bang => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            TokenKind::Minus => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Minus,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            _ => self.parse_primary(),
+        }
+    }
+
+    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_shift()?;
+        loop {
+            let op = match self.kind() {
+                TokenKind::Pipe => BinaryOp::BitOr,
+                TokenKind::Caret => BinaryOp::Xor,
+                TokenKind::Ampersand => BinaryOp::BitAnd,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_shift()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_term()?;
+        loop {
+            let op = match self.kind() {
+                TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
+                TokenKind::ShiftRight => BinaryOp::ShiftRight,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_term()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
     }
 
     fn kind(&self) -> &TokenKind {
@@ -120,7 +235,7 @@ impl Parser {
             self.advance();
             Ok(s)
         } else {
-            Err(self.error("Expected Indetifier"))
+            Err(self.error("Expected Identifier"))
         }
     }
 
@@ -137,7 +252,7 @@ impl Parser {
     fn error(&self, content: &str) -> ParseError {
         ParseError {
             content: content.to_string(),
-            line: 0,
+            line: self.tokens[self.current].span.line,
         }
     }
 }

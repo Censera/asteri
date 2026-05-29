@@ -1,6 +1,13 @@
 use crate::lexer::Types;
 
 #[derive(Debug)]
+pub enum UnaryOp {
+    Not,
+    Neg,
+    Minus,
+}
+
+#[derive(Debug)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -12,6 +19,11 @@ pub enum BinaryOp {
     GreaterThan,
     LtOrEqual,
     GtOrEqual,
+    Xor,
+    BitAnd,
+    BitOr,
+    ShiftLeft,
+    ShiftRight,
 }
 
 #[derive(Debug)]
@@ -28,6 +40,10 @@ pub enum Expr {
         name: String,
         args: Vec<Expr>,
     },
+    Unary {
+        op: UnaryOp,
+        expr: Box<Expr>,
+    },
 }
 
 #[derive(Debug)]
@@ -38,5 +54,5 @@ pub enum Stmt {
         tp: Types,
         value: Expr,
     },
-    Ret(Expr),
+    Ret(Option<Expr>),
 }

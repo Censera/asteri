@@ -79,6 +79,8 @@ pub enum TokenKind {
     GreaterOrEqual,
     TwoPipes,
     TwoAmpersands,
+    ShiftLeft,
+    ShiftRight,
 
     // Keywords
     Let,
@@ -121,7 +123,7 @@ pub struct TextSpan {
     start: usize,
     end: usize,
     literal: String,
-    line: usize,
+    pub line: usize,
 }
 
 impl TextSpan {
@@ -293,8 +295,28 @@ impl Lexer {
                 '|' => self.is_compound('|', TokenKind::TwoPipes, TokenKind::Pipe),
                 '&' => self.is_compound('&', TokenKind::TwoAmpersands, TokenKind::Ampersand),
                 '~' => TokenKind::Tilde,
-                '<' => self.is_compound('=', TokenKind::LessOrEqual, TokenKind::LessThan),
-                '>' => self.is_compound('=', TokenKind::GreaterOrEqual, TokenKind::GreaterThan),
+                '<' => match self.current_char() {
+                    Some('<') => {
+                        self.swallow();
+                        TokenKind::ShiftLeft
+                    }
+                    Some('=') => {
+                        self.swallow();
+                        TokenKind::LessOrEqual
+                    }
+                    _ => TokenKind::LessThan,
+                },
+                '>' => match self.current_char() {
+                    Some('>') => {
+                        self.swallow();
+                        TokenKind::ShiftRight
+                    }
+                    Some('=') => {
+                        self.swallow();
+                        TokenKind::GreaterOrEqual
+                    }
+                    _ => TokenKind::GreaterThan,
+                },
                 '(' => TokenKind::OpeningParen,
                 ')' => TokenKind::ClosingParen,
                 '{' => TokenKind::OpeningBrace,
