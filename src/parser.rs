@@ -44,7 +44,17 @@ impl Parser {
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Match => self.parse_match(),
             TokenKind::Ret => self.parse_ret(),
-            TokenKind::Id(name) => self.parse_assign(name.to_string()),
+            TokenKind::Id(_) => {
+                if matches!(self.peek(), Some(TokenKind::Equal)) {
+                    let name = self.expect_id()?;
+                    self.advance();
+                    let value = self.parse_expr()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(Stmt::Assign { name, value })
+                } else {
+                    Err(self.error("Unexpected Token"))
+                }
+            }
             _ => Err(self.error("Unexpected Token")),
         }
     }
@@ -398,6 +408,10 @@ impl Parser {
         if !self.is_eof() {
             self.current += 1;
         }
+    }
+
+    fn peek(&mut self) -> Option<&TokenKind> {
+        self.tokens.get(self.current + 1).map(|n| &n.kind)
     }
 
     fn is_eof(&self) -> bool {
