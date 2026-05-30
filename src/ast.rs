@@ -37,7 +37,7 @@ pub struct MatchArm {
 #[derive(Debug)]
 pub enum MatchPattern {
     Expr(Expr),
-    Defualt,
+    Default,
 }
 
 #[derive(Debug)]
@@ -75,6 +75,11 @@ pub enum Stmt {
     Const {
         name: String,
         tp: Types,
+        value: Expr,
+    },
+
+    Assign {
+        name: String,
         value: Expr,
     },
 

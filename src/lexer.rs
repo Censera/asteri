@@ -89,6 +89,7 @@ pub enum TokenKind {
     If,
     Else,
     While,
+    Loop,
     Match,
     Break,
     Ret,

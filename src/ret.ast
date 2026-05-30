@@ -2,7 +2,7 @@ let x: int = 13;
 let y: int = 7;
 
 while x == y {
-    x = x - 1;
+     x = x - 1;
 }
 
 ret (0);

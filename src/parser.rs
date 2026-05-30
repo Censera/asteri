@@ -1,4 +1,4 @@
-use crate::ast::{BinaryOp, Expr, Stmt, UnaryOp};
+use crate::ast::{BinaryOp, Expr, MatchArm, MatchPattern, Stmt, UnaryOp};
 use crate::lexer::{Token, TokenKind, Types};
 
 #[derive(Debug)]
@@ -44,6 +44,7 @@ impl Parser {
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Match => self.parse_match(),
             TokenKind::Ret => self.parse_ret(),
+            TokenKind::Id(name) => self.parse_assign(name.to_string()),
             _ => Err(self.error("Unexpected Token")),
         }
     }
@@ -68,6 +69,11 @@ impl Parser {
         let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Const { name, tp, value })
+    }
+
+    fn parse_assign(&mut self, name: String) -> Result<Stmt, ParseError> {
+        let value = self.parse_expr()?;
+        Ok(Stmt::Assign { name, value })
     }
 
     fn parse_print(&mut self) -> Result<Stmt, ParseError> {
@@ -121,7 +127,7 @@ impl Parser {
     fn parse_while(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
         let condition = self.parse_expr()?;
-        let body = self.parse_block?;
+        let body = self.parse_block()?;
         Ok(Stmt::While { condition, body })
     }
 
@@ -129,6 +135,29 @@ impl Parser {
         self.advance();
         let body = self.parse_block()?;
         Ok(Stmt::Loop { body })
+    }
+
+    fn parse_match(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let expr = self.parse_expr()?;
+        let arms = self.parse_arms()?;
+        Ok(Stmt::Match { expr, arms })
+    }
+
+    fn parse_arms(&mut self) -> Result<Vec<MatchArm>, ParseError> {
+        self.expect(TokenKind::OpeningCurly)?;
+        let mut arms = Vec::new();
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+            let pattern = match self.kind() {
+                TokenKind::Id(s) if s == "_" => {
+                    self.advance();
+                    MatchPattern::Default
+                }
+                _ => MatchPattern::Expr(self.parse_expr()?),
+            };
+        }
+        self.expect(TokenKind::ClosingCurly)?;
+        Ok(arms)
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
