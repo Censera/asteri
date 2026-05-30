@@ -1,13 +1,13 @@
 use std::fmt;
 
 #[derive(Debug)]
-pub struct LexErr {
-    pub kind: LexErrKind,
+pub struct LexerError {
+    pub kind: LexerErrorKind,
     pub line: usize,
 }
 
 #[derive(Debug)]
-pub enum LexErrKind {
+pub enum LexerErrorKind {
     UnterStr,
     UnterCha,
     InvEsc(char),
@@ -15,23 +15,23 @@ pub enum LexErrKind {
 }
 
 // Error handling
-impl fmt::Display for LexErr {
+impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "line {}: {}", self.line, self.kind)
     }
 }
 
-impl fmt::Display for LexErrKind {
+impl fmt::Display for LexerErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LexErrKind::UnterStr => write!(f, "unterminated string literal"),
-            LexErrKind::UnterCha => write!(f, "unterminated char literal"),
-            LexErrKind::InvEsc(c) => write!(f, "invalid escape sequence: \\{}", c),
-            LexErrKind::InvCha => write!(f, "invalid character"),
+            LexerErrorKind::UnterStr => write!(f, "unterminated string literal"),
+            LexerErrorKind::UnterCha => write!(f, "unterminated char literal"),
+            LexerErrorKind::InvEsc(c) => write!(f, "invalid escape sequence: \\{}", c),
+            LexerErrorKind::InvCha => write!(f, "invalid character"),
         }
     }
 }
-impl std::error::Error for LexErr {}
+impl std::error::Error for LexerError {}
 
 // Tokens
 #[derive(Debug)]
@@ -187,7 +187,7 @@ impl Lexer {
         }
     }
 
-    pub fn next_token(&mut self) -> Option<Result<Token, LexErr>> {
+    pub fn next_token(&mut self) -> Option<Result<Token, LexerError>> {
         while matches!(self.current_char(), Some(c) if c.is_whitespace()) {
             self.swallow();
         }
@@ -349,8 +349,8 @@ impl Lexer {
                     )));
                 }
                 _ => {
-                    return Some(Err(LexErr {
-                        kind: LexErrKind::InvCha,
+                    return Some(Err(LexerError {
+                        kind: LexerErrorKind::InvCha,
                         line: token_line,
                     }))
                 }
@@ -443,14 +443,14 @@ impl Lexer {
         }
     }
 
-    fn string_token(&mut self, line: usize) -> Result<TokenKind, LexErr> {
+    fn string_token(&mut self, line: usize) -> Result<TokenKind, LexerError> {
         let mut content = String::new();
         while (self.current_char() != Some('"')) && !self.is_eof() {
             content.push(self.consume_escape(line)?);
         }
         if self.current_char() != Some('"') {
-            return Err(LexErr {
-                kind: LexErrKind::UnterStr,
+            return Err(LexerError {
+                kind: LexerErrorKind::UnterStr,
                 line: line,
             });
         }
@@ -459,7 +459,7 @@ impl Lexer {
         Ok(TokenKind::Str(content))
     }
 
-    fn consume_escape(&mut self, line: usize) -> Result<char, LexErr> {
+    fn consume_escape(&mut self, line: usize) -> Result<char, LexerError> {
         let c = match self.current_char() {
             Some('\\') => {
                 self.swallow();
@@ -489,8 +489,8 @@ impl Lexer {
                         '\\'
                     }
                     other => {
-                        return Err(LexErr {
-                            kind: LexErrKind::InvEsc(other.unwrap_or('\0')),
+                        return Err(LexerError {
+                            kind: LexerErrorKind::InvEsc(other.unwrap_or('\0')),
                             line: line,
                         })
                     }
@@ -501,8 +501,8 @@ impl Lexer {
                 ch
             }
             _ => {
-                return Err(LexErr {
-                    kind: LexErrKind::InvCha,
+                return Err(LexerError {
+                    kind: LexerErrorKind::InvCha,
                     line: line,
                 })
             }
@@ -510,11 +510,11 @@ impl Lexer {
         Ok(c)
     }
 
-    fn char_token(&mut self, line: usize) -> Result<TokenKind, LexErr> {
+    fn char_token(&mut self, line: usize) -> Result<TokenKind, LexerError> {
         let c = self.consume_escape(line)?;
         if self.current_char() != Some('\'') {
-            return Err(LexErr {
-                kind: LexErrKind::UnterCha,
+            return Err(LexerError {
+                kind: LexerErrorKind::UnterCha,
                 line: line,
             });
         }

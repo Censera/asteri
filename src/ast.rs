@@ -85,7 +85,7 @@ pub enum Stmt {
     },
 
     While {
-        condtion: Expr,
+        condition: Expr,
         body: Vec<Stmt>,
     },
 

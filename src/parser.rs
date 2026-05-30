@@ -9,7 +9,7 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Parse Error: {}", self.content)
+        write!(f, "[Parser] {}", self.content)
     }
 }
 
@@ -36,10 +36,13 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
-            TokenKind::Const => self.parse_let(),
+            TokenKind::Const => self.parse_const(),
             TokenKind::Print => self.parse_print(),
-            TokenKind::Error => self.parse_print(),
+            TokenKind::Error => self.parse_error(),
             TokenKind::If => self.parse_if(),
+            TokenKind::While => self.parse_while(),
+            TokenKind::Loop => self.parse_loop(),
+            TokenKind::Match => self.parse_match(),
             TokenKind::Ret => self.parse_ret(),
             _ => Err(self.error("Unexpected Token")),
         }
@@ -113,6 +116,19 @@ impl Parser {
             body,
             else_branch,
         })
+    }
+
+    fn parse_while(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let condition = self.parse_expr()?;
+        let body = self.parse_block?;
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn parse_loop(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let body = self.parse_block()?;
+        Ok(Stmt::Loop { body })
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
