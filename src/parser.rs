@@ -82,7 +82,43 @@ impl Parser {
 
     // :>
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_camparison()?; // 2:
+        let mut left = self.parse_logical_and()?; // 3:
+        loop {
+            let op = match self.kind() {
+                TokenKind::TwoPipes => BinaryOp::BitOr,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_logical_and()?; // 3:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_logical_and(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_additive()?; // 3:
+        loop {
+            let op = match self.kind() {
+                TokenKind::TwoPipes => BinaryOp::BitAnd,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_additive()?; // 3:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_additive(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_comparison()?;
         while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
             let op = match self.kind() {
                 TokenKind::Plus => BinaryOp::Add,
@@ -90,7 +126,7 @@ impl Parser {
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_camparison()?; // 2:
+            let right = self.parse_comparison()?; // 2:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -101,7 +137,7 @@ impl Parser {
     }
 
     // :2
-    fn parse_camparison(&mut self) -> Result<Expr, ParseError> {
+    fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_bitwise()?; // 3:
         loop {
             let op = match self.kind() {
