@@ -72,7 +72,10 @@ impl Parser {
     }
 
     fn parse_assign(&mut self, name: String) -> Result<Stmt, ParseError> {
+        self.advance();
+        self.expect(TokenKind::Equal);
         let value = self.parse_expr()?;
+        self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Assign { name, value })
     }
 
