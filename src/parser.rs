@@ -37,6 +37,7 @@ impl Parser {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
             TokenKind::Print => self.parse_print(),
+            TokenKind::If => self.parse_if(),
             TokenKind::Ret => self.parse_ret(),
             _ => Err(self.error("Unexpected Token")),
         }
@@ -48,16 +49,34 @@ impl Parser {
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
         self.expect(TokenKind::Equal)?;
-        let value = self.parse_expr()?; // :>
+        let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Let { name, tp, value })
     }
 
+    fn parse_const(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let name = self.expect_id()?;
+        self.expect(TokenKind::Colon)?;
+        let tp = self.expect_type()?;
+        self.expect(TokenKind::Equal)?;
+        let value = self.parse_expr()?;
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Stmt::Const { name, tp, value })
+    }
+
     fn parse_print(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
-        let expr = self.parse_expr()?; // :>
+        let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Print(expr))
+    }
+
+    fn parse_error(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let expr = self.parse_expr()?;
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Stmt::Error(expr))
     }
 
     fn parse_ret(&mut self) -> Result<Stmt, ParseError> {
@@ -66,30 +85,64 @@ impl Parser {
             self.advance();
             Ok(Stmt::Ret(None))
         } else {
-            let expr = self.parse_expr()?; // :>
+            let expr = self.parse_expr()?;
             self.expect(TokenKind::Semicolon)?;
             Ok(Stmt::Ret(Some(expr)))
         }
     }
 
-    // :>   parse_expr          2:
-    // :2   parse_comparison    3:
-    // :3   parse_bitwise       4:
-    // :4   parse_shift         5:
-    // :5   parse_term          6:
-    // :6   parse_unary         7:
-    // :7   parse_primary       Error:
+    fn parse_if(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let condition = self.parse_expr()?;
+        let body = self.parse_block()?;
+        let else_branch = if matches!(self.kind(), TokenKind::Else) {
+            self.advance();
+            if matches!(self.kind(), TokenKind::If) {
+                Some(Box::new(self.parse_if()?))
+            } else {
+                Some(Box::new(Stmt::Block(self.parse_block()?)))
+            }
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition,
+            body,
+            else_branch,
+        })
+    }
+
+    fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        self.expect(TokenKind::OpeningCurly)?;
+        let mut stmts = Vec::new();
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+            stmts.push(self.parse_stmt()?);
+        }
+        self.expect(TokenKind::ClosingCurly)?;
+        Ok(stmts)
+    }
+
+    // :>   parse_expr          1:
+    // :1   parse_logical_and   2:
+    // :2   parse_additive      3:
+    // :3   parse_comparison    4:
+    // :4   parse_bitwise       5:
+    // :5   parse_shift         6:
+    // :6   parse_term          7:
+    // :7   parse_unary         8:
+    // :8   parse_primary       Error:
 
     // :>
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_logical_and()?; // 3:
+        let mut left = self.parse_logical_and()?; // 1:
         loop {
             let op = match self.kind() {
-                TokenKind::TwoPipes => BinaryOp::BitOr,
+                TokenKind::TwoPipes => BinaryOp::LogicOr,
                 _ => break,
             };
             self.advance();
-            let right = self.parse_logical_and()?; // 3:
+            let right = self.parse_logical_and()?; // 1:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -99,34 +152,16 @@ impl Parser {
         Ok(left)
     }
 
+    // :1
     fn parse_logical_and(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_additive()?; // 3:
+        let mut left = self.parse_additive()?; // 2:
         loop {
             let op = match self.kind() {
-                TokenKind::TwoPipes => BinaryOp::BitAnd,
+                TokenKind::TwoAmpersands => BinaryOp::LogicAnd,
                 _ => break,
             };
             self.advance();
-            let right = self.parse_additive()?; // 3:
-            left = Expr::Binary {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
-            };
-        }
-        Ok(left)
-    }
-
-    fn parse_additive(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_comparison()?;
-        while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
-            let op = match self.kind() {
-                TokenKind::Plus => BinaryOp::Add,
-                TokenKind::Minus => BinaryOp::Sub,
-                _ => unreachable!(),
-            };
-            self.advance();
-            let right = self.parse_comparison()?; // 2:
+            let right = self.parse_additive()?; // 2:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -137,20 +172,16 @@ impl Parser {
     }
 
     // :2
-    fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_bitwise()?; // 3:
-        loop {
+    fn parse_additive(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_comparison()?; // 3:
+        while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
             let op = match self.kind() {
-                TokenKind::EqualEqual => BinaryOp::EqualEqual,
-                TokenKind::NotEqual => BinaryOp::NotEqual,
-                TokenKind::LessThan => BinaryOp::LessThan,
-                TokenKind::GreaterThan => BinaryOp::GreaterThan,
-                TokenKind::LessOrEqual => BinaryOp::LessOrEqual,
-                TokenKind::GreaterOrEqual => BinaryOp::GreaterOrEqual,
-                _ => break,
+                TokenKind::Plus => BinaryOp::Add,
+                TokenKind::Minus => BinaryOp::Sub,
+                _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_bitwise()?; // 3:
+            let right = self.parse_comparison()?; // 3:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -161,17 +192,20 @@ impl Parser {
     }
 
     // :3
-    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_shift()?; // 4:
+    fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_bitwise()?; // 4:
         loop {
             let op = match self.kind() {
-                TokenKind::Pipe => BinaryOp::BitOr,
-                TokenKind::Caret => BinaryOp::Xor,
-                TokenKind::Ampersand => BinaryOp::BitAnd,
+                TokenKind::EqualEqual => BinaryOp::Eql,
+                TokenKind::NotEqual => BinaryOp::Neq,
+                TokenKind::LessThan => BinaryOp::LessTh,
+                TokenKind::GreaterThan => BinaryOp::GreaTh,
+                TokenKind::LessOrEqual => BinaryOp::LessOr,
+                TokenKind::GreaterOrEqual => BinaryOp::GreaOr,
                 _ => break,
             };
             self.advance();
-            let right = self.parse_shift()?; // 4:
+            let right = self.parse_bitwise()?; // 4:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -182,16 +216,17 @@ impl Parser {
     }
 
     // :4
-    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_term()?; // 5:
+    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_shift()?; // 5:
         loop {
             let op = match self.kind() {
-                TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
-                TokenKind::ShiftRight => BinaryOp::ShiftRight,
+                TokenKind::Pipe => BinaryOp::BitOr,
+                TokenKind::Caret => BinaryOp::BitXor,
+                TokenKind::Ampersand => BinaryOp::BitAnd,
                 _ => break,
             };
             self.advance();
-            let right = self.parse_term()?; // 5:
+            let right = self.parse_shift()?; // 5:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -202,16 +237,16 @@ impl Parser {
     }
 
     // :5
-    fn parse_term(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_unary()?; // 6:
-        while matches!(self.kind(), TokenKind::Asterisk | TokenKind::Slash) {
+    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_term()?; // 6:
+        loop {
             let op = match self.kind() {
-                TokenKind::Asterisk => BinaryOp::Mul,
-                TokenKind::Slash => BinaryOp::Div,
-                _ => unreachable!(),
+                TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
+                TokenKind::ShiftRight => BinaryOp::ShiftRight,
+                _ => break,
             };
             self.advance();
-            let right = self.parse_unary()?; // 6:
+            let right = self.parse_term()?; // 6:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -222,6 +257,26 @@ impl Parser {
     }
 
     // :6
+    fn parse_term(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_unary()?; // 7:
+        while matches!(self.kind(), TokenKind::Asterisk | TokenKind::Slash) {
+            let op = match self.kind() {
+                TokenKind::Asterisk => BinaryOp::Mul,
+                TokenKind::Slash => BinaryOp::Div,
+                _ => unreachable!(),
+            };
+            self.advance();
+            let right = self.parse_unary()?; // 7:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // :7
     fn parse_unary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
             TokenKind::Tilde => {
@@ -241,21 +296,21 @@ impl Parser {
             TokenKind::Minus => {
                 self.advance();
                 Ok(Expr::Unary {
-                    op: UnaryOp::Minus,
+                    op: UnaryOp::Mns,
                     expr: Box::new(self.parse_unary()?),
                 })
             }
-            _ => self.parse_primary(), // 7:
+            _ => self.parse_primary(), // 8:
         }
     }
 
-    // :7
+    // :8
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
-            TokenKind::OpeningParen => {
+            TokenKind::OpeningRound => {
                 self.advance();
                 let expr = self.parse_expr()?;
-                self.expect(TokenKind::ClosingParen)?;
+                self.expect(TokenKind::ClosingRound)?;
                 Ok(expr)
             }
             TokenKind::Int(n) => {

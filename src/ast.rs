@@ -4,7 +4,7 @@ use crate::lexer::Types;
 pub enum UnaryOp {
     Not,
     Neg,
-    Minus,
+    Mns,
 }
 
 #[derive(Debug)]
@@ -13,15 +13,17 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
-    EqualEqual,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessOrEqual,
-    GreaterOrEqual,
-    Xor,
-    BitAnd,
     BitOr,
+    BitAnd,
+    BitXor,
+    Eql,
+    Neq,
+    LessTh,
+    GreaTh,
+    LessOr,
+    GreaOr,
+    LogicOr,
+    LogicAnd,
     ShiftLeft,
     ShiftRight,
 }
@@ -49,10 +51,27 @@ pub enum Expr {
 #[derive(Debug)]
 pub enum Stmt {
     Print(Expr),
+    Erro(Expr),
+
     Let {
         name: String,
         tp: Types,
         value: Expr,
     },
+
+    Const {
+        name: String,
+        tp: Types,
+        value: Expr,
+    },
+
+    If {
+        condition: Expr,
+        body: Vec<Stmt>,
+        else_branch: Option<Box<Stmt>>,
+    },
+
+    Block(Vec<Stmt>),
+
     Ret(Option<Expr>),
 }

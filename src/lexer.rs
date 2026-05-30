@@ -65,12 +65,12 @@ pub enum TokenKind {
     Bang,
     LessThan,
     GreaterThan,
-    OpeningBrace,
-    ClosingBrace,
-    OpeningParen,
-    ClosingParen,
-    OpeningBracket,
-    ClosingBracket,
+    OpeningRound,
+    ClosingRound,
+    OpeningCurly,
+    ClosingCurly,
+    OpeningSquare,
+    ClosingSquare,
 
     // Compound Char
     Arrow,
@@ -270,10 +270,10 @@ impl Lexer {
                 "bool" => TokenKind::Type(Types::Bool),
                 "string" => TokenKind::Type(Types::String),
                 "char" => TokenKind::Type(Types::Char),
-                "vector2" => TokenKind::Type(Types::Vector2),
-                "vector3" => TokenKind::Type(Types::Vector3),
-                "matrix3x3" => TokenKind::Type(Types::Matrix3x3),
-                "matrix4x4" => TokenKind::Type(Types::Matrix4x4),
+                "vec2" => TokenKind::Type(Types::Vector2),
+                "vec3" => TokenKind::Type(Types::Vector3),
+                "mat3x3" => TokenKind::Type(Types::Matrix3x3),
+                "mat4x4" => TokenKind::Type(Types::Matrix4x4),
                 _ => TokenKind::Id(id),
             }
         } else {
@@ -318,12 +318,12 @@ impl Lexer {
                     }
                     _ => TokenKind::GreaterThan,
                 },
-                '(' => TokenKind::OpeningParen,
-                ')' => TokenKind::ClosingParen,
-                '{' => TokenKind::OpeningBrace,
-                '}' => TokenKind::ClosingBrace,
-                '[' => TokenKind::OpeningBracket,
-                ']' => TokenKind::ClosingBracket,
+                '(' => TokenKind::OpeningRound,
+                ')' => TokenKind::ClosingRound,
+                '{' => TokenKind::OpeningCurly,
+                '}' => TokenKind::ClosingCurly,
+                '[' => TokenKind::OpeningSquare,
+                ']' => TokenKind::ClosingSquare,
                 '"' => {
                     let kind = match self.string_token(token_line) {
                         Ok(it_is_ok) => it_is_ok,
