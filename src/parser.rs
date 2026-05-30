@@ -36,7 +36,9 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
+            TokenKind::Const => self.parse_let(),
             TokenKind::Print => self.parse_print(),
+            TokenKind::Error => self.parse_print(),
             TokenKind::If => self.parse_if(),
             TokenKind::Ret => self.parse_ret(),
             _ => Err(self.error("Unexpected Token")),
@@ -325,6 +327,11 @@ impl Parser {
             TokenKind::False => {
                 self.advance();
                 Ok(Expr::Bool(false))
+            }
+            TokenKind::Str(string) => {
+                let e = Expr::Str(string.clone());
+                self.advance();
+                Ok(e)
             }
             TokenKind::Id(s) => {
                 let e = Expr::Id(s.clone());

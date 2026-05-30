@@ -1,12 +1,8 @@
 let x: int = 13;
 let y: int = 7;
 
-if (y - x) > 0 {
-    print "Positive results";
-} else if (y - w) < 0 {
-    print "Negative results";
-} else {
-    print "Result is zero";
+while x == y {
+    x = x - 1;
 }
 
 ret (0);

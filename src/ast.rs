@@ -29,9 +29,22 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug)]
+pub struct MatchArm {
+    pub pattern: MatchPattern,
+    pub body: Vec<Stmt>,
+}
+
+#[derive(Debug)]
+pub enum MatchPattern {
+    Expr(Expr),
+    Defualt,
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Int(isize),
     Bool(bool),
+    Str(String),
     Id(String),
     Binary {
         left: Box<Expr>,
@@ -51,7 +64,7 @@ pub enum Expr {
 #[derive(Debug)]
 pub enum Stmt {
     Print(Expr),
-    Erro(Expr),
+    Error(Expr),
 
     Let {
         name: String,
@@ -71,7 +84,20 @@ pub enum Stmt {
         else_branch: Option<Box<Stmt>>,
     },
 
-    Block(Vec<Stmt>),
+    While {
+        condtion: Expr,
+        body: Vec<Stmt>,
+    },
 
+    Loop {
+        body: Vec<Stmt>,
+    },
+
+    Match {
+        expr: Expr,
+        arms: Vec<MatchArm>,
+    },
+
+    Block(Vec<Stmt>),
     Ret(Option<Expr>),
 }
