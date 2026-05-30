@@ -41,6 +41,7 @@ pub enum TokenKind {
     Str(String),
     Char(char),
     Float(f64),
+
     // Types
     Type(Types),
 

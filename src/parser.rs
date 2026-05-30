@@ -48,14 +48,14 @@ impl Parser {
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
         self.expect(TokenKind::Equal)?;
-        let value = self.parse_expr()?;
+        let value = self.parse_expr()?; // :>
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Let { name, tp, value })
     }
 
     fn parse_print(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
-        let expr = self.parse_expr()?;
+        let expr = self.parse_expr()?; // :>
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Print(expr))
     }
@@ -66,22 +66,31 @@ impl Parser {
             self.advance();
             Ok(Stmt::Ret(None))
         } else {
-            let expr = self.parse_expr()?;
+            let expr = self.parse_expr()?; // :>
             self.expect(TokenKind::Semicolon)?;
             Ok(Stmt::Ret(Some(expr)))
         }
     }
 
+    // :>   parse_expr          2:
+    // :2   parse_comparison    3:
+    // :3   parse_bitwise       4:
+    // :4   parse_shift         5:
+    // :5   parse_term          6:
+    // :6   parse_unary         7:
+    // :7   parse_primary       Error:
+
+    // :>
     fn parse_expr(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_term()?;
+        let mut left = self.parse_camparison()?; // 2:
         while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
             let op = match self.kind() {
                 TokenKind::Plus => BinaryOp::Add,
-                TokenKind::Plus => BinaryOp::Sub,
+                TokenKind::Minus => BinaryOp::Sub,
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_term()?;
+            let right = self.parse_camparison()?; // 2:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -91,8 +100,74 @@ impl Parser {
         Ok(left)
     }
 
+    // :2
+    fn parse_camparison(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_bitwise()?; // 3:
+        loop {
+            let op = match self.kind() {
+                TokenKind::EqualEqual => BinaryOp::EqualEqual,
+                TokenKind::NotEqual => BinaryOp::NotEqual,
+                TokenKind::LessThan => BinaryOp::LessThan,
+                TokenKind::GreaterThan => BinaryOp::GreaterThan,
+                TokenKind::LessOrEqual => BinaryOp::LessOrEqual,
+                TokenKind::GreaterOrEqual => BinaryOp::GreaterOrEqual,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_bitwise()?; // 3:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // :3
+    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_shift()?; // 4:
+        loop {
+            let op = match self.kind() {
+                TokenKind::Pipe => BinaryOp::BitOr,
+                TokenKind::Caret => BinaryOp::Xor,
+                TokenKind::Ampersand => BinaryOp::BitAnd,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_shift()?; // 4:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // :4
+    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_term()?; // 5:
+        loop {
+            let op = match self.kind() {
+                TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
+                TokenKind::ShiftRight => BinaryOp::ShiftRight,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_term()?; // 5:
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    // :5
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_unary()?;
+        let mut left = self.parse_unary()?; // 6:
         while matches!(self.kind(), TokenKind::Asterisk | TokenKind::Slash) {
             let op = match self.kind() {
                 TokenKind::Asterisk => BinaryOp::Mul,
@@ -100,7 +175,7 @@ impl Parser {
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_unary()?;
+            let right = self.parse_unary()?; // 6:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -110,6 +185,35 @@ impl Parser {
         Ok(left)
     }
 
+    // :6
+    fn parse_unary(&mut self) -> Result<Expr, ParseError> {
+        match self.kind() {
+            TokenKind::Tilde => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            TokenKind::Bang => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            TokenKind::Minus => {
+                self.advance();
+                Ok(Expr::Unary {
+                    op: UnaryOp::Minus,
+                    expr: Box::new(self.parse_unary()?),
+                })
+            }
+            _ => self.parse_primary(), // 7:
+        }
+    }
+
+    // :7
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
             TokenKind::OpeningParen => {
@@ -136,74 +240,8 @@ impl Parser {
                 self.advance();
                 Ok(e)
             }
-            _ => Err(self.error("Expected Expression")),
+            _ => Err(self.error("Expected Expression")), // :Error
         }
-    }
-
-    fn parse_unary(&mut self) -> Result<Expr, ParseError> {
-        match self.kind() {
-            TokenKind::Tilde => {
-                self.advance();
-                Ok(Expr::Unary {
-                    op: UnaryOp::Neg,
-                    expr: Box::new(self.parse_unary()?),
-                })
-            }
-            TokenKind::Bang => {
-                self.advance();
-                Ok(Expr::Unary {
-                    op: UnaryOp::Not,
-                    expr: Box::new(self.parse_unary()?),
-                })
-            }
-            TokenKind::Minus => {
-                self.advance();
-                Ok(Expr::Unary {
-                    op: UnaryOp::Minus,
-                    expr: Box::new(self.parse_unary()?),
-                })
-            }
-            _ => self.parse_primary(),
-        }
-    }
-
-    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_shift()?;
-        loop {
-            let op = match self.kind() {
-                TokenKind::Pipe => BinaryOp::BitOr,
-                TokenKind::Caret => BinaryOp::Xor,
-                TokenKind::Ampersand => BinaryOp::BitAnd,
-                _ => break,
-            };
-            self.advance();
-            let right = self.parse_shift()?;
-            left = Expr::Binary {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
-            };
-        }
-        Ok(left)
-    }
-
-    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_term()?;
-        loop {
-            let op = match self.kind() {
-                TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
-                TokenKind::ShiftRight => BinaryOp::ShiftRight,
-                _ => break,
-            };
-            self.advance();
-            let right = self.parse_term()?;
-            left = Expr::Binary {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
-            };
-        }
-        Ok(left)
     }
 
     fn kind(&self) -> &TokenKind {
