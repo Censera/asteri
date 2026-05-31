@@ -60,8 +60,6 @@ pub enum Expr {
         op: UnaryOp,
         expr: Box<Expr>,
     },
-
-    None,
 }
 
 #[derive(Debug)]

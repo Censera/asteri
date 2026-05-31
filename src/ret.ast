@@ -1,17 +1,8 @@
-let x: int = 13;
-let y: int = 7;
-
-while x == y {
-     x = x - 1;
-}
-
-let a: i16;
-let a: i16;
-
 fn: i8 add(a: i8, b: i8) {
      return a + b;
 }
 
-C { int x = 1; }
+let a: i16 = 1;
+let a: i16 = 4;
 
-return (0);
+let x: i8 = add(a, b);

@@ -66,18 +66,17 @@ impl Parser {
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
-        let value;
-        if matches!(self.kind(), TokenKind::Equal) {
+        let value = if matches!(self.kind(), TokenKind::Equal) {
             self.advance();
-            value = self.parse_expr()?;
+            Some(self.parse_expr()?)
         } else {
-            value = Expr::None;
-        }
+            None
+        };
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Let {
             name,
             tp: Some(tp),
-            value: Some(value),
+            value,
         })
     }
 
@@ -86,18 +85,17 @@ impl Parser {
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
-        let value;
-        if matches!(self.kind(), TokenKind::Equal) {
+        let value = if matches!(self.kind(), TokenKind::Equal) {
             self.advance();
-            value = self.parse_expr()?;
+            Some(self.parse_expr()?)
         } else {
-            value = Expr::None;
-        }
+            None
+        };
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Const {
             name,
             tp: Some(tp),
-            value: Some(value),
+            value,
         })
     }
 
@@ -472,9 +470,22 @@ impl Parser {
                 Ok(e)
             }
             TokenKind::Id(s) => {
-                let e = Expr::Id(s.clone());
+                let name = s.clone();
                 self.advance();
-                Ok(e)
+                if matches!(self.kind(), TokenKind::OpeningRound) {
+                    self.advance();
+                    let mut args = Vec::new();
+                    while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
+                        args.push(self.parse_expr()?);
+                        if matches!(self.kind(), TokenKind::Comma) {
+                            self.advance();
+                        }
+                    }
+                    self.expect(TokenKind::ClosingRound)?;
+                    Ok(Expr::Call { name, args })
+                } else {
+                    Ok(Expr::Id(name))
+                }
             }
             _ => Err(self.error("Expected Expression")), // :Error
         }

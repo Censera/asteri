@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
-        eprintln!("Use: ast <file.ast>");
+        eprintln!("[Use] astric <file.ast>");
         return Ok(());
     }
 
@@ -23,18 +23,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match result {
             Ok(token) => tokens.push(token),
             Err(e) => {
-                eprintln!("lex error: {}", e);
+                eprintln!("[Error] [Lexer] {}", e);
                 return Err(Box::new(e));
             }
         }
     }
 
-    println!("Source:\n{}", input);
-    println!("Tokens:\n{:#?}", tokens);
+    println!("\t[Source]\n{input}");
+    println!("\t[Tokens]\n{:#?}", tokens);
 
     let mut parser = parser::Parser::new(tokens);
     let stmts = parser.parse()?;
 
-    println!("Parser:\n{:#?}", stmts);
+    println!("\t[Parser]\n{:#?}", stmts);
     Ok(())
 }
