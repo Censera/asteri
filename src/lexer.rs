@@ -117,13 +117,14 @@ pub enum TokenKind {
     // Other
     EOF,
     Id(String),
+    CBlock,
 }
 
 #[derive(Debug)]
 pub struct TextSpan {
     start: usize,
     end: usize,
-    literal: String,
+    pub literal: String,
     pub line: usize,
 }
 
@@ -242,6 +243,7 @@ impl Lexer {
                 "form" => TokenKind::Form,
                 "struct" | "structure" => TokenKind::Struct,
                 "use" => TokenKind::Use,
+                "C" => TokenKind::CBlock,
 
                 "pri" | "private" => TokenKind::Pri,
                 "pub" | "public" => TokenKind::Pub,

@@ -46,6 +46,7 @@ pub enum Expr {
     Bool(bool),
     Str(String),
     Id(String),
+
     Binary {
         left: Box<Expr>,
         op: BinaryOp,
@@ -59,6 +60,8 @@ pub enum Expr {
         op: UnaryOp,
         expr: Box<Expr>,
     },
+
+    None,
 }
 
 #[derive(Debug)]
@@ -68,14 +71,14 @@ pub enum Stmt {
 
     Let {
         name: String,
-        tp: Types,
-        value: Expr,
+        tp: Option<Types>,
+        value: Option<Expr>,
     },
 
     Const {
         name: String,
-        tp: Types,
-        value: Expr,
+        tp: Option<Types>,
+        value: Option<Expr>,
     },
 
     Assign {
@@ -103,6 +106,14 @@ pub enum Stmt {
         arms: Vec<MatchArm>,
     },
 
+    Fun {
+        rt_tp: Option<Types>,
+        name: String,
+        params: Vec<(String, Types)>,
+        body: Vec<Stmt>,
+    },
+
+    CBlock(String),
     Block(Vec<Stmt>),
     Ret(Option<Expr>),
 }
