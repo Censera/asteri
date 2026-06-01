@@ -1,8 +1,3 @@
-fn: i8 add(a: i8, b: i8) {
-     return a + b;
-}
-
-let a: i16 = 1;
-let a: i16 = 4;
-
-let x: i8 = add(a, b);
+let a: i8 = 12;
+let b: i8 = 110;
+let c: i8 = b band a;

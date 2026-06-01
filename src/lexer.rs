@@ -17,17 +17,17 @@ pub enum LexerErrorKind {
 // Error handling
 impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "line {}: {}", self.line, self.kind)
+        write!(f, "{} |\t{}", self.line, self.kind)
     }
 }
 
 impl fmt::Display for LexerErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LexerErrorKind::UnterStr => write!(f, "unterminated string literal"),
-            LexerErrorKind::UnterCha => write!(f, "unterminated char literal"),
-            LexerErrorKind::InvEsc(c) => write!(f, "invalid escape sequence: \\{}", c),
-            LexerErrorKind::InvCha => write!(f, "invalid character"),
+            LexerErrorKind::UnterStr => write!(f, "Unterminated string literal"),
+            LexerErrorKind::UnterCha => write!(f, "Unterminated char literal"),
+            LexerErrorKind::InvEsc(c) => write!(f, "Invalid escape sequence: \\{}", c),
+            LexerErrorKind::InvCha => write!(f, "Invalid character"),
         }
     }
 }
@@ -113,6 +113,11 @@ pub enum TokenKind {
     Open,
     Close,
     Sort,
+
+    BitXor,
+    BitOr,
+    BitAnd,
+    BitNot,
 
     // Other
     EOF,
@@ -255,6 +260,11 @@ impl Lexer {
                 "read" => TokenKind::Read,
                 "sort" => TokenKind::Sort,
                 "write" => TokenKind::Write,
+
+                "xor" => TokenKind::BitXor,
+                "bor" => TokenKind::BitOr,
+                "band" => TokenKind::BitAnd,
+                "bnot" => TokenKind::BitNot,
 
                 "err" | "error" => TokenKind::Error,
                 "false" => TokenKind::False,

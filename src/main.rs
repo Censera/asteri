@@ -23,18 +23,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match result {
             Ok(token) => tokens.push(token),
             Err(e) => {
-                eprintln!("[Error] [Lexer] {}", e);
+                eprintln!("<Error>\n{e}");
                 return Err(Box::new(e));
             }
         }
     }
 
-    println!("\t[Source]\n{input}");
-    println!("\t[Tokens]\n{:#?}", tokens);
+    println!("\t<Source>\n{input}");
+    println!("\t<Tokens>\n{:#?}", tokens);
 
     let mut parser = parser::Parser::new(tokens);
     let stmts = parser.parse()?;
 
-    println!("\t[Parser]\n{:#?}", stmts);
+    println!("\t<Parser>\n{:#?}", stmts);
     Ok(())
 }

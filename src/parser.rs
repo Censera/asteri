@@ -47,14 +47,11 @@ impl Parser {
             TokenKind::Ret => self.parse_ret(),
             TokenKind::CBlock => self.parse_cblock(),
             TokenKind::Id(_) => {
-                if matches!(self.peek(), Some(TokenKind::Equal)) {
-                    let name = self.expect_id()?;
-                    self.advance();
-                    let value = self.parse_expr()?;
-                    self.expect(TokenKind::Semicolon)?;
-                    Ok(Stmt::Assign { name, value })
-                } else {
-                    Err(self.error("Unexpected Token"))
+                let name = self.expect_id()?;
+                match self.kind() {
+                    TokenKind::Equal => self.parse_assign(name),
+                    TokenKind::OpeningRound => self.parse_call(name),
+                    _ => Err(self.error("Unexpected Token")),
                 }
             }
             _ => Err(self.error("Unexpected Token")),
@@ -261,6 +258,27 @@ impl Parser {
         Ok(stmts)
     }
 
+    fn parse_assign(&mut self, name: String) -> Result<Stmt, ParseError> {
+        self.advance();
+        let value = self.parse_expr()?;
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Stmt::Assign { name, value })
+    }
+
+    fn parse_call(&mut self, name: String) -> Result<Stmt, ParseError> {
+        self.advance();
+        let mut args = Vec::new();
+        while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
+            args.push(self.parse_expr()?);
+            if matches!(self.kind(), TokenKind::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::ClosingRound)?;
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Stmt::Call { name, args })
+    }
+
     // :>   parse_expr          1:
     // :1   parse_logical_and   2:
     // :2   parse_additive      3:
@@ -358,9 +376,9 @@ impl Parser {
         let mut left = self.parse_shift()?; // 5:
         loop {
             let op = match self.kind() {
-                TokenKind::Pipe => BinaryOp::BitOr,
-                TokenKind::Caret => BinaryOp::BitXor,
-                TokenKind::Ampersand => BinaryOp::BitAnd,
+                TokenKind::BitOr => BinaryOp::BitOr,
+                TokenKind::BitXor => BinaryOp::BitXor,
+                TokenKind::BitAnd => BinaryOp::BitAnd,
                 _ => break,
             };
             self.advance();
@@ -417,10 +435,10 @@ impl Parser {
     // :7
     fn parse_unary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
-            TokenKind::Tilde => {
+            TokenKind::BitNot => {
                 self.advance();
                 Ok(Expr::Unary {
-                    op: UnaryOp::Neg,
+                    op: UnaryOp::BitNot,
                     expr: Box::new(self.parse_unary()?),
                 })
             }
@@ -434,7 +452,7 @@ impl Parser {
             TokenKind::Minus => {
                 self.advance();
                 Ok(Expr::Unary {
-                    op: UnaryOp::Mns,
+                    op: UnaryOp::Minus,
                     expr: Box::new(self.parse_unary()?),
                 })
             }

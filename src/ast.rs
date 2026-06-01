@@ -2,9 +2,9 @@ use crate::lexer::Types;
 
 #[derive(Debug)]
 pub enum UnaryOp {
-    Not,
-    Neg,
-    Mns,
+    Not,    // !
+    Minus,  // -
+    BitNot, // ~
 }
 
 #[derive(Debug)]
@@ -13,9 +13,6 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
-    BitOr,
-    BitAnd,
-    BitXor,
     Eql,
     Neq,
     LessTh,
@@ -26,6 +23,10 @@ pub enum BinaryOp {
     LogicAnd,
     ShiftLeft,
     ShiftRight,
+
+    BitOr,  // bor
+    BitAnd, // band
+    BitXor, // xor
 }
 
 #[derive(Debug)]
@@ -109,6 +110,11 @@ pub enum Stmt {
         name: String,
         params: Vec<(String, Types)>,
         body: Vec<Stmt>,
+    },
+
+    Call {
+        name: String,
+        args: Vec<Expr>,
     },
 
     CBlock(String),
