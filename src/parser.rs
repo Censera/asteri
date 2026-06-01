@@ -1,4 +1,6 @@
-use crate::ast::{BinaryOp, Expr, MatchArm, MatchPattern, Stmt, UnaryOp};
+use crate::ast::{
+    BinaryOp, Expr, MatchArm, MatchPattern, Stmt, StructField, StructMethod, UnaryOp,
+};
 use crate::lexer::{Token, TokenKind, Types};
 
 #[derive(Debug)]
@@ -9,7 +11,7 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "[Parser] {}", self.content)
+        write!(f, "{} | {}", self.line, self.content)
     }
 }
 
@@ -36,7 +38,7 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
-            TokenKind::Const => self.parse_const(),
+            TokenKind::Immut => self.parse_immut(),
             TokenKind::Print => self.parse_print(),
             TokenKind::Error => self.parse_error(),
             TokenKind::Fun => self.parse_fun(),
@@ -44,6 +46,7 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Match => self.parse_match(),
+            TokenKind::Struct => self.parse_struct(),
             TokenKind::Ret => self.parse_ret(),
             TokenKind::CBlock => self.parse_cblock(),
             TokenKind::Id(_) => {
@@ -77,7 +80,7 @@ impl Parser {
         })
     }
 
-    fn parse_const(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_immut(&mut self) -> Result<Stmt, ParseError> {
         self.advance();
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
@@ -89,7 +92,7 @@ impl Parser {
             None
         };
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Const {
+        Ok(Stmt::Immut {
             name,
             tp: Some(tp),
             value,
@@ -246,6 +249,53 @@ impl Parser {
         }
         self.expect(TokenKind::ClosingCurly)?;
         Ok(arms)
+    }
+
+    fn parse_struct(&mut self) -> Result<Stmt, ParseError> {
+        self.advance();
+        let name = self.expect_id()?;
+        self.expect(TokenKind::OpeningCurly)?;
+        let mut methods = Vec::new();
+        let mut fields = Vec::new();
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+            let is_immut = matches!(self.kind(), TokenKind::Immut);
+            if is_immut {
+                self.advance();
+            }
+            if matches!(self.kind(), TokenKind::Fun) {
+                self.advance();
+                let rt_tp = if matches!(self.kind(), TokenKind::Colon) {
+                    self.advance();
+                    Some(self.expect_type()?)
+                } else {
+                    None
+                };
+                let mtd_name = self.expect_id()?;
+                self.expect(TokenKind::OpeningRound)?;
+                let params = self.parse_params()?;
+                self.expect(TokenKind::ClosingRound)?;
+                let body = self.parse_block()?;
+                methods.push(StructMethod {
+                    is_immut,
+                    rt_tp,
+                    name: mtd_name,
+                    params,
+                    body,
+                });
+            } else {
+                let fld_name = self.expect_id()?;
+                self.expect(TokenKind::Colon)?;
+                let tp = self.expect_type()?;
+                self.expect(TokenKind::Comma)?;
+                fields.push(StructField { name: fld_name, tp });
+            }
+        }
+        self.expect(TokenKind::ClosingCurly)?;
+        Ok(Stmt::Struct {
+            name,
+            fields,
+            methods,
+        })
     }
 
     fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
@@ -435,6 +485,10 @@ impl Parser {
     // :7
     fn parse_unary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
+            TokenKind::Ampersand => {
+                self.advance();
+                Ok(Expr::Reference(Box::new(self.parse_unary()?)))
+            }
             TokenKind::BitNot => {
                 self.advance();
                 Ok(Expr::Unary {
@@ -456,11 +510,21 @@ impl Parser {
                     expr: Box::new(self.parse_unary()?),
                 })
             }
-            _ => self.parse_primary(), // 8:
+            _ => self.parse_postfix(), // 8:
         }
     }
 
     // :8
+    fn parse_postfix(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_primary()?; // 9:
+        while matches!(self.kind(), TokenKind::Caret) {
+            self.advance();
+            expr = Expr::Dereference(Box::new(expr))
+        }
+        Ok(expr)
+    }
+
+    // :9
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         match self.kind() {
             TokenKind::OpeningRound => {
@@ -519,7 +583,7 @@ impl Parser {
         }
     }
 
-    fn peek(&mut self) -> Option<&TokenKind> {
+    fn _peek(&mut self) -> Option<&TokenKind> {
         self.tokens.get(self.current + 1).map(|n| &n.kind)
     }
 
@@ -547,6 +611,22 @@ impl Parser {
     }
 
     fn expect_type(&mut self) -> Result<Types, ParseError> {
+        // ^ A pointer that can't be null
+        if matches!(self.kind(), TokenKind::Caret) {
+            self.advance();
+            let inner = self.expect_type()?;
+            return Ok(Types::Pointer(Box::new(inner)));
+        }
+
+        // ? A pointer that can be null
+        if matches!(self.kind(), TokenKind::Huh) {
+            self.advance();
+            self.expect(TokenKind::Caret)?;
+            let inner = self.expect_type()?;
+            return Ok(Types::OptionPointer(Box::new(inner)));
+        }
+
+        // Types
         if let TokenKind::Type(tp) = self.kind() {
             let tp = tp.clone();
             self.advance();

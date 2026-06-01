@@ -42,6 +42,21 @@ pub enum MatchPattern {
 }
 
 #[derive(Debug)]
+pub struct StructField {
+    pub name: String,
+    pub tp: Types,
+}
+
+#[derive(Debug)]
+pub struct StructMethod {
+    pub is_immut: bool,
+    pub rt_tp: Option<Types>,
+    pub name: String,
+    pub params: Vec<(String, Types)>,
+    pub body: Vec<Stmt>,
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Int(isize),
     Bool(bool),
@@ -61,6 +76,9 @@ pub enum Expr {
         op: UnaryOp,
         expr: Box<Expr>,
     },
+
+    Reference(Box<Expr>),   // &x
+    Dereference(Box<Expr>), // p^
 }
 
 #[derive(Debug)]
@@ -74,7 +92,7 @@ pub enum Stmt {
         value: Option<Expr>,
     },
 
-    Const {
+    Immut {
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
@@ -115,6 +133,12 @@ pub enum Stmt {
     Call {
         name: String,
         args: Vec<Expr>,
+    },
+
+    Struct {
+        name: String,
+        fields: Vec<StructField>,
+        methods: Vec<StructMethod>,
     },
 
     CBlock(String),

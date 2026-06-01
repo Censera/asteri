@@ -85,7 +85,7 @@ pub enum TokenKind {
 
     // Keywords
     Let,
-    Const,
+    Immut,
     If,
     Else,
     While,
@@ -164,6 +164,9 @@ pub enum Types {
     Matrix4x4,
     Vector2,
     Vector3,
+
+    Pointer(Box<Types>),
+    OptionPointer(Box<Types>),
 }
 
 #[derive(Debug)]
@@ -231,7 +234,7 @@ impl Lexer {
         } else if c.is_alphabetic() || c == '_' {
             let id = self.consume_id();
             match id.as_str() {
-                "const" | "constant" => TokenKind::Const,
+                "immut" | "immutable" => TokenKind::Immut,
                 "let" => TokenKind::Let,
 
                 "break" => TokenKind::Break,

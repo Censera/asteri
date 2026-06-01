@@ -1,4 +1,5 @@
 mod ast;
+mod interpreter;
 mod lexer;
 mod parser;
 
@@ -30,11 +31,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\t<Source>\n{input}");
-    println!("\t<Tokens>\n{:#?}", tokens);
+    //println!("\t<Tokens>\n{:#?}", tokens);
 
     let mut parser = parser::Parser::new(tokens);
     let stmts = parser.parse()?;
 
-    println!("\t<Parser>\n{:#?}", stmts);
+    //println!("\t<Parser>\n{:#?}", stmts);
     Ok(())
 }
