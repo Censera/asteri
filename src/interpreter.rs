@@ -44,3 +44,22 @@ impl Environment {
         None
     }
 }
+
+pub struct Interpreter {
+    env: Environment,
+}
+
+impl Interpreter {
+    pub fn new(&mut self) -> Self {
+        Self {
+            env: Environment::new(),
+        }
+    }
+
+    pub fn run(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+        for stmt in stmts {
+            self.exec_stmt(stmt)?;
+        }
+        Ok(())
+    }
+}
