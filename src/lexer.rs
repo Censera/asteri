@@ -17,7 +17,7 @@ pub enum LexerErrorKind {
 // Error handling
 impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} |\t{}", self.line, self.kind)
+        write!(f, "\t<Sema>\n{} |\t{}", self.line, self.kind)
     }
 }
 
@@ -37,7 +37,7 @@ impl std::error::Error for LexerError {}
 #[derive(Debug)]
 pub enum TokenKind {
     // Literals
-    Int(isize),
+    Int(i64),
     Str(String),
     Char(char),
     Float(f64),
@@ -144,7 +144,7 @@ impl TextSpan {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Types {
     I8,
     I16,
@@ -404,11 +404,11 @@ impl Lexer {
     }
 
     fn consume_number(&mut self) -> TokenKind {
-        let mut int_part: isize = 0;
+        let mut int_part: i64 = 0;
         while let Some(c) = self.current_char() {
             if c.is_digit(10) {
                 self.swallow().unwrap();
-                int_part = int_part * 10 + (c as isize - '0' as isize);
+                int_part = int_part * 10 + (c as i64 - '0' as i64);
             } else {
                 break;
             }

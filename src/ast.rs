@@ -1,4 +1,4 @@
-use crate::lexer::Types;
+pub use crate::lexer::Types;
 
 #[derive(Debug)]
 pub enum UnaryOp {
@@ -58,8 +58,9 @@ pub struct StructMethod {
 
 #[derive(Debug)]
 pub enum Expr {
-    Int(isize),
+    Int(i64),
     Bool(bool),
+    Float(f64),
     Str(String),
     Id(String),
 

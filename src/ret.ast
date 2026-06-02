@@ -1,1 +1,4 @@
-print 43;
+immut a: f64 = 35.00;
+let b: string = "3";
+
+print a + b;

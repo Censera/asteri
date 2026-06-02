@@ -11,7 +11,7 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} | {}", self.line, self.content)
+        write!(f, "\t<Parser>\n{} |\t{}", self.line, self.content)
     }
 }
 
@@ -535,6 +535,11 @@ impl Parser {
             }
             TokenKind::Int(n) => {
                 let e = Expr::Int(*n);
+                self.advance();
+                Ok(e)
+            }
+            TokenKind::Float(f) => {
+                let e = Expr::Float(*f);
                 self.advance();
                 Ok(e)
             }
