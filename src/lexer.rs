@@ -155,7 +155,7 @@ pub struct Lexer {
     line: usize,
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
-    infos: Vec<AsteriError>,
+    info: Vec<AsteriError>,
 }
 
 impl Lexer {
@@ -166,7 +166,7 @@ impl Lexer {
             line: 1,
             errors: Vec::new(),
             warnings: Vec::new(),
-            infos: Vec::new(),
+            info: Vec::new(),
         }
     }
 
@@ -491,10 +491,16 @@ impl Lexer {
     pub fn take_errors(self) -> Vec<AsteriError> {
         self.errors
     }
+
     pub fn take_warnings(self) -> Vec<AsteriError> {
         self.warnings
     }
-    pub fn take_infos(self) -> Vec<AsteriError> {
-        self.infos
+
+    pub fn take_info(self) -> Vec<AsteriError> {
+        self.info
+    }
+
+    pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {
+        (self.errors, self.warnings, self.info)
     }
 }

@@ -63,7 +63,7 @@ impl AsteriError {
 pub fn report_and_check(
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
-    infos: Vec<AsteriError>,
+    info: Vec<AsteriError>,
 ) -> bool {
     for e in &errors {
         e.report();
@@ -71,7 +71,7 @@ pub fn report_and_check(
     for w in &warnings {
         w.report();
     }
-    for i in &infos {
+    for i in &info {
         i.report();
     }
     !errors.is_empty()
