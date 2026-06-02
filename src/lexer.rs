@@ -154,6 +154,8 @@ pub struct Lexer {
     current: usize,
     line: usize,
     errors: Vec<AsteriError>,
+    warnings: Vec<AsteriError>,
+    infos: Vec<AsteriError>,
 }
 
 impl Lexer {
@@ -163,6 +165,8 @@ impl Lexer {
             current: 0,
             line: 1,
             errors: Vec::new(),
+            warnings: Vec::new(),
+            infos: Vec::new(),
         }
     }
 
@@ -178,15 +182,6 @@ impl Lexer {
                 self.swallow();
             }
             return self.next_token();
-        }
-
-        if self.current > self.chars.len() {
-            return None;
-        }
-        if self.current == self.chars.len() {
-            self.current += 1;
-            self.add_error("Unexpected end of file");
-            return None;
         }
 
         let c = match self.current_char() {
@@ -495,5 +490,11 @@ impl Lexer {
 
     pub fn take_errors(self) -> Vec<AsteriError> {
         self.errors
+    }
+    pub fn take_warnings(self) -> Vec<AsteriError> {
+        self.warnings
+    }
+    pub fn take_infos(self) -> Vec<AsteriError> {
+        self.infos
     }
 }

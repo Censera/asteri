@@ -59,3 +59,20 @@ impl AsteriError {
         );
     }
 }
+
+pub fn report_and_check(
+    errors: Vec<AsteriError>,
+    warnings: Vec<AsteriError>,
+    infos: Vec<AsteriError>,
+) -> bool {
+    for e in &errors {
+        e.report();
+    }
+    for w in &warnings {
+        w.report();
+    }
+    for i in &infos {
+        i.report();
+    }
+    !errors.is_empty()
+}

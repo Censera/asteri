@@ -26,10 +26,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokens.push(token);
     }
 
-    let errors = lexer.take_errors();
-
-    for err in errors {
-        err.report();
+    if error::report_and_check(
+        lexer.take_errors(),
+        lexer.take_warnings(),
+        lexer.take_infos(),
+    ) {
+        return Ok(());
     }
 
     // println!("\t<Tokens>\n{:#?}", tokens);
