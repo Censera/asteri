@@ -1,37 +1,5 @@
+use crate::error::{AsteriError, ErrorKind};
 use std::fmt;
-
-#[derive(Debug)]
-pub struct LexerError {
-    pub kind: LexerErrorKind,
-    pub line: usize,
-}
-
-#[derive(Debug)]
-pub enum LexerErrorKind {
-    UnterStr,
-    UnterCha,
-    InvEsc(char),
-    InvCha,
-}
-
-// Error handling
-impl fmt::Display for LexerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\t<Sema>\n{} |\t{}", self.line, self.kind)
-    }
-}
-
-impl fmt::Display for LexerErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            LexerErrorKind::UnterStr => write!(f, "Unterminated string literal"),
-            LexerErrorKind::UnterCha => write!(f, "Unterminated char literal"),
-            LexerErrorKind::InvEsc(c) => write!(f, "Invalid escape sequence: \\{}", c),
-            LexerErrorKind::InvCha => write!(f, "Invalid character"),
-        }
-    }
-}
-impl std::error::Error for LexerError {}
 
 // Tokens
 #[derive(Debug)]
@@ -196,7 +164,7 @@ impl Lexer {
         }
     }
 
-    pub fn next_token(&mut self) -> Option<Result<Token, LexerError>> {
+    pub fn next_token(&mut self) -> Option<Result<Token, AsteriError>> {
         while matches!(self.current_char(), Some(c) if c.is_whitespace()) {
             self.swallow();
         }
@@ -347,7 +315,7 @@ impl Lexer {
                 '[' => TokenKind::OpeningSquare,
                 ']' => TokenKind::ClosingSquare,
                 '"' => {
-                    let kind = match self.string_token(token_line) {
+                    let kind = match self.string_token() {
                         Ok(it_is_ok) => it_is_ok,
                         Err(oh_no) => return Some(Err(oh_no)),
                     };
@@ -359,7 +327,7 @@ impl Lexer {
                     )));
                 }
                 '\'' => {
-                    let kind = match self.char_token(token_line) {
+                    let kind = match self.char_token() {
                         Ok(okk) => okk,
                         Err(errr) => return Some(Err(errr)),
                     };
@@ -370,12 +338,7 @@ impl Lexer {
                         TextSpan::new(start, end, literal, self.line),
                     )));
                 }
-                _ => {
-                    return Some(Err(LexerError {
-                        kind: LexerErrorKind::InvCha,
-                        line: token_line,
-                    }))
-                }
+                _ => return Some(Err(self.error("Invalid character"))),
             }
         };
 
@@ -465,23 +428,20 @@ impl Lexer {
         }
     }
 
-    fn string_token(&mut self, line: usize) -> Result<TokenKind, LexerError> {
+    fn string_token(&mut self) -> Result<TokenKind, AsteriError> {
         let mut content = String::new();
         while (self.current_char() != Some('"')) && !self.is_eof() {
-            content.push(self.consume_escape(line)?);
+            content.push(self.consume_escape()?);
         }
         if self.current_char() != Some('"') {
-            return Err(LexerError {
-                kind: LexerErrorKind::UnterStr,
-                line: line,
-            });
+            return Err(self.error("Unterminated string literal"));
         }
 
         self.swallow();
         Ok(TokenKind::Str(content))
     }
 
-    fn consume_escape(&mut self, line: usize) -> Result<char, LexerError> {
+    fn consume_escape(&mut self) -> Result<char, AsteriError> {
         let c = match self.current_char() {
             Some('\\') => {
                 self.swallow();
@@ -510,35 +470,22 @@ impl Lexer {
                         self.swallow();
                         '\\'
                     }
-                    other => {
-                        return Err(LexerError {
-                            kind: LexerErrorKind::InvEsc(other.unwrap_or('\0')),
-                            line: line,
-                        })
-                    }
+                    other => return Err(self.error("Invalid escpae sequence")),
                 }
             }
             Some(ch) => {
                 self.swallow();
                 ch
             }
-            _ => {
-                return Err(LexerError {
-                    kind: LexerErrorKind::InvCha,
-                    line: line,
-                })
-            }
+            _ => return Err(self.error("Invalid character")),
         };
         Ok(c)
     }
 
-    fn char_token(&mut self, line: usize) -> Result<TokenKind, LexerError> {
-        let c = self.consume_escape(line)?;
+    fn char_token(&mut self) -> Result<TokenKind, AsteriError> {
+        let c = self.consume_escape()?;
         if self.current_char() != Some('\'') {
-            return Err(LexerError {
-                kind: LexerErrorKind::UnterCha,
-                line: line,
-            });
+            return Err(self.error(&format!("Unterminated char literal")));
         }
         self.swallow();
         Ok(TokenKind::Char(c))
@@ -546,5 +493,9 @@ impl Lexer {
 
     fn is_eof(&self) -> bool {
         self.current >= self.chars.len()
+    }
+
+    fn error(&self, msg: impl Into<String>) -> AsteriError {
+        AsteriError::new(ErrorKind::Lexer, self.line, String::new(), msg.into())
     }
 }

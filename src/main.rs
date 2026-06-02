@@ -25,9 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(result) = lexer.next_token() {
         match result {
             Ok(token) => tokens.push(token),
-            Err(e) => {
-                eprintln!("<Error>\n{e}");
-                return Err(Box::new(e));
+            Err(err) => {
+                err.report();
+                return Ok(());
             }
         }
     }

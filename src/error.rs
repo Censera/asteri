@@ -1,10 +1,10 @@
 pub struct Color;
 
 impl Color {
-    pub const RED: &'static str = "\x1b[31m";
+    pub const RED: &'static str = "\x1b[1;31m";
     pub const ERROR: &'static str = "\x1b[1;37;41m";
     pub const YELLOW: &'static str = "\x1b[33m";
-    pub const WARNING: &'static str = "\x1b[30;43m";
+    pub const WARNING: &'static str = "\x1b[1;30;43m";
     pub const BLUE: &'static str = "\x1b[34m";
     pub const INFO: &'static str = "\x1b[1;37;44m";
     pub const PURPLE: &'static str = "\x1b[1;35m";
@@ -17,6 +17,8 @@ pub enum ErrorKind {
     Lexer,
     Parser,
     Sema,
+    Warning,
+    Info,
 }
 
 #[derive(Debug)]
@@ -46,7 +48,7 @@ impl AsteriError {
             ErrorKind::Info => ("INFO", Color::INFO, Color::BLUE),
         };
         eprintln!(
-            "{}{}{}\n {}{:<3}{} |\t{}  {}<- {}{}\n",
+            "\t{} {} {}\n{}{:<4}{}| {} {}<- {}{}\n",
             color1,
             label,
             Color::RESET,
