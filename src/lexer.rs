@@ -312,7 +312,7 @@ impl Lexer {
                 '"' => self.string_token(),
                 '\'' => self.char_token(),
                 _ => {
-                    self.add_error("Unexpected character");
+                    self.error("Unexpected character");
                     TokenKind::EOF // Placeholder token kind for invalid character
                 }
             }
@@ -410,7 +410,7 @@ impl Lexer {
             content.push(self.consume_escape());
         }
         if self.current_char() != Some('"') {
-            self.add_error("Unterminated string literal");
+            self.error("Unterminated string literal");
         } else {
             self.swallow();
         }
@@ -448,7 +448,7 @@ impl Lexer {
                         '\\'
                     }
                     _ => {
-                        self.add_error("Invalid escape sequence");
+                        self.error("Invalid escape sequence");
                         '\0'
                     }
                 }
@@ -458,7 +458,7 @@ impl Lexer {
                 ch
             }
             None => {
-                self.add_error("Unexpected EOF inside literal");
+                self.error("Unexpected EOF inside literal");
                 '\0'
             }
         };
@@ -468,7 +468,7 @@ impl Lexer {
     fn char_token(&mut self) -> TokenKind {
         let c = self.consume_escape();
         if self.current_char() != Some('\'') {
-            self.add_error("Unterminated character literal");
+            self.error("Unterminated character literal");
         } else {
             self.swallow();
         }
@@ -479,11 +479,24 @@ impl Lexer {
         self.current >= self.chars.len()
     }
 
-    fn add_error(&mut self, msg: impl Into<String>) {
+    fn error(&mut self, msg: impl Into<String>) {
+        let error_position = self.current.min(self.chars.len().saturating_sub(1));
+        let mut line_start = error_position;
+        while line_start > 0 && self.chars[line_start - 1] != '\n' {
+            line_start -= 1
+        }
+
+        let mut line_end = line_start;
+        while line_end < self.chars.len() && self.chars[line_end] != '\n' {
+            line_end += 1
+        }
+
+        let src_line = self.chars[line_start..line_end].iter().collect();
+
         self.errors.push(AsteriError::new(
             ErrorKind::Lexer,
             self.line,
-            "".to_string(),
+            src_line,
             msg.into(),
         ));
     }

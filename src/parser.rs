@@ -8,6 +8,8 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     errors: Vec<AsteriError>,
+    warnings: Vec<AsteriError>,
+    info: Vec<AsteriError>,
 }
 
 impl Parser {
@@ -16,10 +18,12 @@ impl Parser {
             tokens,
             current: 0,
             errors: Vec::new(),
+            warnings: Vec::new(),
+            info: Vec::new(),
         }
     }
 
-    pub fn parse(&mut self) -> (Vec<Stmt>, Vec<AsteriError>) {
+    pub fn parse(&mut self) -> Vec<Stmt> {
         let mut stmts = Vec::new();
         while !self.is_eof() {
             match self.parse_stmt() {
@@ -30,7 +34,7 @@ impl Parser {
                 }
             }
         }
-        (stmts, self.errors)
+        stmts
     }
 
     fn recover(&mut self) {
@@ -663,5 +667,9 @@ impl Parser {
         } else {
             Err(self.error("Expected Type"))
         }
+    }
+
+    pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {
+        (self.errors, self.warnings, self.info)
     }
 }

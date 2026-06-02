@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parser
     let mut parser = parser::Parser::new(tokens);
     let stmts = parser.parse();
-    let (stmts, errors, warnings, info) = parser.parse();
+    let (errors, warnings, info) = parser.take_all();
     if error::report_and_check(errors, warnings, info) {
         return Ok(());
     }

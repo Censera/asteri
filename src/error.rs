@@ -57,7 +57,7 @@ pub fn report_and_check(
                 Color::RED,
                 e.msg,
                 Color::RESET
-            )
+            );
         }
     }
     if !warnings.is_empty() {
