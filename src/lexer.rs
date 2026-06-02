@@ -153,6 +153,7 @@ pub struct Lexer {
     chars: Vec<char>,
     current: usize,
     line: usize,
+    errors: Vec<AsteriError>,
 }
 
 impl Lexer {
@@ -161,10 +162,11 @@ impl Lexer {
             chars: input.chars().collect(),
             current: 0,
             line: 1,
+            errors: Vec::new(),
         }
     }
 
-    pub fn next_token(&mut self) -> Option<Result<Token, AsteriError>> {
+    pub fn next_token(&mut self) -> Option<Token> {
         while matches!(self.current_char(), Some(c) if c.is_whitespace()) {
             self.swallow();
         }
@@ -183,10 +185,8 @@ impl Lexer {
         }
         if self.current == self.chars.len() {
             self.current += 1;
-            return Some(Ok(Token::new(
-                TokenKind::EOF,
-                TextSpan::new(0, 0, '\0'.to_string(), self.line),
-            )));
+            self.add_error("Unexpected end of file");
+            return None;
         }
 
         let c = match self.current_char() {
@@ -314,40 +314,21 @@ impl Lexer {
                 '}' => TokenKind::ClosingCurly,
                 '[' => TokenKind::OpeningSquare,
                 ']' => TokenKind::ClosingSquare,
-                '"' => {
-                    let kind = match self.string_token() {
-                        Ok(it_is_ok) => it_is_ok,
-                        Err(oh_no) => return Some(Err(oh_no)),
-                    };
-                    let end = self.current; // record the end of the string literal
-                    let literal = self.chars[start..end].iter().collect();
-                    return Some(Ok(Token::new(
-                        kind,
-                        TextSpan::new(start, end, literal, self.line),
-                    )));
+                '"' => self.string_token(),
+                '\'' => self.char_token(),
+                _ => {
+                    self.add_error("Unexpected character");
+                    TokenKind::EOF // Placeholder token kind for invalid character
                 }
-                '\'' => {
-                    let kind = match self.char_token() {
-                        Ok(okk) => okk,
-                        Err(errr) => return Some(Err(errr)),
-                    };
-                    let end = self.current; // end char
-                    let literal = self.chars[start..end].iter().collect();
-                    return Some(Ok(Token::new(
-                        kind,
-                        TextSpan::new(start, end, literal, self.line),
-                    )));
-                }
-                _ => return Some(Err(self.error("Invalid character"))),
             }
         };
 
         let end = self.current;
         let literal = self.chars[start..end].iter().collect();
-        Some(Ok(Token::new(
+        Some(Token::new(
             kind,
-            TextSpan::new(start, end, literal, self.line),
-        )))
+            TextSpan::new(start, end, literal, token_line),
+        ))
     }
 
     fn current_char(&self) -> Option<char> {
@@ -428,20 +409,21 @@ impl Lexer {
         }
     }
 
-    fn string_token(&mut self) -> Result<TokenKind, AsteriError> {
+    fn string_token(&mut self) -> TokenKind {
         let mut content = String::new();
         while (self.current_char() != Some('"')) && !self.is_eof() {
-            content.push(self.consume_escape()?);
+            content.push(self.consume_escape());
         }
         if self.current_char() != Some('"') {
-            return Err(self.error("Unterminated string literal"));
+            self.add_error("Unterminated string literal");
+        } else {
+            self.swallow();
         }
 
-        self.swallow();
-        Ok(TokenKind::Str(content))
+        TokenKind::Str(content)
     }
 
-    fn consume_escape(&mut self) -> Result<char, AsteriError> {
+    fn consume_escape(&mut self) -> char {
         let c = match self.current_char() {
             Some('\\') => {
                 self.swallow();
@@ -470,32 +452,48 @@ impl Lexer {
                         self.swallow();
                         '\\'
                     }
-                    other => return Err(self.error("Invalid escpae sequence")),
+                    _ => {
+                        self.add_error("Invalid escape sequence");
+                        '\0'
+                    }
                 }
             }
             Some(ch) => {
                 self.swallow();
                 ch
             }
-            _ => return Err(self.error("Invalid character")),
+            None => {
+                self.add_error("Unexpected EOF inside literal");
+                '\0'
+            }
         };
-        Ok(c)
+        c
     }
 
-    fn char_token(&mut self) -> Result<TokenKind, AsteriError> {
-        let c = self.consume_escape()?;
+    fn char_token(&mut self) -> TokenKind {
+        let c = self.consume_escape();
         if self.current_char() != Some('\'') {
-            return Err(self.error(&format!("Unterminated char literal")));
+            self.add_error("Unterminated character literal");
+        } else {
+            self.swallow();
         }
-        self.swallow();
-        Ok(TokenKind::Char(c))
+        TokenKind::Char(c)
     }
 
     fn is_eof(&self) -> bool {
         self.current >= self.chars.len()
     }
 
-    fn error(&self, msg: impl Into<String>) -> AsteriError {
-        AsteriError::new(ErrorKind::Lexer, self.line, String::new(), msg.into())
+    fn add_error(&mut self, msg: impl Into<String>) {
+        self.errors.push(AsteriError::new(
+            ErrorKind::Lexer,
+            self.line,
+            "".to_string(),
+            msg.into(),
+        ));
+    }
+
+    pub fn take_errors(self) -> Vec<AsteriError> {
+        self.errors
     }
 }

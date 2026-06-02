@@ -579,21 +579,22 @@ impl Parser {
     }
 
     fn kind(&self) -> &TokenKind {
-        &self.tokens[self.current].kind
+        &self
+            .peek()
+            .unwrap_or(&self.tokens[self.tokens.len() - 1])
+            .kind
+    }
+
+    fn peek(&self) -> Option<&Token> {
+        self.tokens.get(self.current)
     }
 
     fn advance(&mut self) {
-        if !self.is_eof() {
-            self.current += 1;
-        }
-    }
-
-    fn _peek(&mut self) -> Option<&TokenKind> {
-        self.tokens.get(self.current + 1).map(|n| &n.kind)
+        self.current += 1;
     }
 
     fn is_eof(&self) -> bool {
-        matches!(self.kind(), TokenKind::EOF)
+        self.current >= self.tokens.len() - 1
     }
 
     fn expect(&mut self, expected: TokenKind) -> Result<(), ParseError> {
@@ -642,9 +643,10 @@ impl Parser {
     }
 
     fn error(&self, content: &str) -> ParseError {
+        let index = self.current.min(self.tokens.len() - 1);
         ParseError {
             content: content.to_string(),
-            line: self.tokens[self.current].span.line,
+            line: self.tokens[index].span.line,
         }
     }
 }

@@ -2,7 +2,7 @@ pub struct Color;
 
 impl Color {
     pub const RED: &'static str = "\x1b[1;31m";
-    pub const ERROR: &'static str = "\x1b[1;37;41m";
+    pub const ERROR: &'static str = "\x1b[1;31;41m";
     pub const YELLOW: &'static str = "\x1b[33m";
     pub const WARNING: &'static str = "\x1b[1;30;43m";
     pub const BLUE: &'static str = "\x1b[34m";
@@ -47,18 +47,15 @@ impl AsteriError {
             ErrorKind::Warning => ("WARNING", Color::WARNING, Color::YELLOW),
             ErrorKind::Info => ("INFO", Color::INFO, Color::BLUE),
         };
+
         eprintln!(
-            "\t{} {} {}\n{}{:<4}{}| {} {}<- {}{}\n",
+            "\t{} {} {}\n{} | <- {}{}",
             color1,
             label,
             Color::RESET,
-            Color::BOLD,
             self.line,
-            Color::RESET,
-            self.src_line,
-            color2,
             self.msg,
-            Color::RESET,
-        )
+            Color::RESET
+        );
     }
 }

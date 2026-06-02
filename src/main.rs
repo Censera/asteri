@@ -22,17 +22,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lexer = lexer::Lexer::new(&input);
     let mut tokens = Vec::new();
 
-    while let Some(result) = lexer.next_token() {
-        match result {
-            Ok(token) => tokens.push(token),
-            Err(err) => {
-                err.report();
-                return Ok(());
-            }
-        }
+    while let Some(token) = lexer.next_token() {
+        tokens.push(token);
     }
 
-    println!("\t<Source>\n{input}");
+    let errors = lexer.take_errors();
+
+    for err in errors {
+        err.report();
+    }
+
     // println!("\t<Tokens>\n{:#?}", tokens);
 
     let mut parser = parser::Parser::new(tokens);
