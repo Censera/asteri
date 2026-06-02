@@ -488,18 +488,6 @@ impl Lexer {
         ));
     }
 
-    pub fn take_errors(self) -> Vec<AsteriError> {
-        self.errors
-    }
-
-    pub fn take_warnings(self) -> Vec<AsteriError> {
-        self.warnings
-    }
-
-    pub fn take_info(self) -> Vec<AsteriError> {
-        self.info
-    }
-
     pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {
         (self.errors, self.warnings, self.info)
     }

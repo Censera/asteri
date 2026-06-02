@@ -38,26 +38,6 @@ impl AsteriError {
             msg,
         }
     }
-
-    pub fn report(&self) {
-        let (label, color1, color2) = match self.kind {
-            ErrorKind::Lexer => ("ERROR", Color::ERROR, Color::RED),
-            ErrorKind::Parser => ("ERROR", Color::ERROR, Color::RED),
-            ErrorKind::Sema => ("ERROR", Color::ERROR, Color::RED),
-            ErrorKind::Warning => ("WARNING", Color::WARNING, Color::YELLOW),
-            ErrorKind::Info => ("INFO", Color::INFO, Color::BLUE),
-        };
-
-        eprintln!(
-            "\t{} {} {}\n{} | <- {}{}",
-            color1,
-            label,
-            Color::RESET,
-            self.line,
-            self.msg,
-            Color::RESET
-        );
-    }
 }
 
 pub fn report_and_check(
@@ -65,14 +45,50 @@ pub fn report_and_check(
     warnings: Vec<AsteriError>,
     info: Vec<AsteriError>,
 ) -> bool {
-    for e in &errors {
-        e.report();
+    if !errors.is_empty() {
+        eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
+        for e in &errors {
+            eprintln!(
+                "{}{:<3}|{} {} {}<- {}{}",
+                Color::BOLD,
+                e.line,
+                Color::RESET,
+                e.src_line,
+                Color::RED,
+                e.msg,
+                Color::RESET
+            )
+        }
     }
-    for w in &warnings {
-        w.report();
+    if !warnings.is_empty() {
+        eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
+        for w in &warnings {
+            eprintln!(
+                "{}{:<3}|{} {} {}<- {}{}",
+                Color::BOLD,
+                w.line,
+                Color::RESET,
+                w.src_line,
+                Color::YELLOW,
+                w.msg,
+                Color::RESET
+            )
+        }
     }
-    for i in &info {
-        i.report();
+    if !info.is_empty() {
+        eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
+        for i in &info {
+            eprintln!(
+                "{}{:<3}|{} {} {}<- {}{}",
+                Color::BOLD,
+                i.line,
+                Color::RESET,
+                i.src_line,
+                Color::RED,
+                i.msg,
+                Color::RESET
+            )
+        }
     }
     !errors.is_empty()
 }
