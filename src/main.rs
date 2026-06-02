@@ -19,28 +19,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = read_to_string(file_path)?;
     let lines: Vec<&str> = input.lines().collect();
 
+    // Lexer
     let mut lexer = lexer::Lexer::new(&input);
     let mut tokens = Vec::new();
-
     while let Some(token) = lexer.next_token() {
         tokens.push(token);
     }
-
     let (errors, warnings, info) = lexer.take_all();
-
     if error::report_and_check(errors, warnings, info) {
         return Ok(());
     }
 
-    // println!("\t<Tokens>\n{:#?}", tokens);
-
+    // Parser
     let mut parser = parser::Parser::new(tokens);
-    let stmts = parser.parse()?;
-
-    // println!("\t<Parser>\n{:#?}", stmts);
-
-    // let mut interpreter = interpreter::Interpreter::new();
-    // interpreter.run(&stmts)?;
+    let stmts = parser.parse();
+    let (stmts, errors, warnings, info) = parser.parse();
+    if error::report_and_check(errors, warnings, info) {
+        return Ok(());
+    }
 
     let mut sema = sema::Sema::new();
     sema.analyze(&stmts)?;

@@ -1,41 +1,64 @@
 use crate::ast::{
     BinaryOp, Expr, MatchArm, MatchPattern, Stmt, StructField, StructMethod, UnaryOp,
 };
+use crate::error::{AsteriError, ErrorKind};
 use crate::lexer::{Token, TokenKind, Types};
-
-#[derive(Debug)]
-pub struct ParseError {
-    pub content: String,
-    pub line: usize,
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\t<Parser>\n{} |\t{}", self.line, self.content)
-    }
-}
-
-impl std::error::Error for ParseError {}
 
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    errors: Vec<AsteriError>,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
+        Self {
+            tokens,
+            current: 0,
+            errors: Vec::new(),
+        }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    pub fn parse(&mut self) -> (Vec<Stmt>, Vec<AsteriError>) {
         let mut stmts = Vec::new();
         while !self.is_eof() {
-            stmts.push(self.parse_stmt()?);
+            match self.parse_stmt() {
+                Ok(s) => stmts.push(s),
+                Err(e) => {
+                    self.errors.push(e);
+                    self.recover();
+                }
+            }
         }
-        Ok(stmts)
+        (stmts, self.errors)
     }
 
-    fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
+    fn recover(&mut self) {
+        while !self.is_eof() {
+            match self.kind() {
+                TokenKind::Semicolon => {
+                    self.advance();
+                    return;
+                }
+                TokenKind::ClosingCurly => {
+                    return;
+                }
+                _ => self.advance(),
+            }
+        }
+    }
+
+    fn error(&self, msg: &str) -> AsteriError {
+        let index = self.current.min(self.tokens.len() - 1);
+        AsteriError::new(
+            ErrorKind::Parser,
+            self.tokens[index].span.line,
+            "".to_string(),
+            msg.to_string(),
+        )
+    }
+
+    fn parse_stmt(&mut self) -> Result<Stmt, AsteriError> {
         match self.kind() {
             TokenKind::Let => self.parse_let(),
             TokenKind::Immut => self.parse_immut(),
@@ -61,7 +84,7 @@ impl Parser {
         }
     }
 
-    fn parse_let(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_let(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
@@ -80,7 +103,7 @@ impl Parser {
         })
     }
 
-    fn parse_immut(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_immut(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
@@ -99,21 +122,21 @@ impl Parser {
         })
     }
 
-    fn parse_print(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_print(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Print(expr))
     }
 
-    fn parse_error(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_error(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Error(expr))
     }
 
-    fn parse_fun(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_fun(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let rt_tp = if matches!(self.kind(), TokenKind::Colon) {
             self.advance();
@@ -134,7 +157,7 @@ impl Parser {
         })
     }
 
-    fn parse_params(&mut self) -> Result<Vec<(String, Types)>, ParseError> {
+    fn parse_params(&mut self) -> Result<Vec<(String, Types)>, AsteriError> {
         let mut params = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingRound) {
             let name = self.expect_id()?;
@@ -148,7 +171,7 @@ impl Parser {
         Ok(params)
     }
 
-    fn parse_ret(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_ret(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         if matches!(self.kind(), TokenKind::Semicolon) {
             self.advance();
@@ -160,7 +183,7 @@ impl Parser {
         }
     }
 
-    fn parse_cblock(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_cblock(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         self.expect(TokenKind::OpeningCurly)?;
         let mut raw_c = String::new();
@@ -191,7 +214,7 @@ impl Parser {
         Ok(Stmt::CBlock(raw_c))
     }
 
-    fn parse_if(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_if(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let condition = self.parse_expr()?;
         let body = self.parse_block()?;
@@ -212,27 +235,27 @@ impl Parser {
         })
     }
 
-    fn parse_while(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_while(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let condition = self.parse_expr()?;
         let body = self.parse_block()?;
         Ok(Stmt::While { condition, body })
     }
 
-    fn parse_loop(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_loop(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let body = self.parse_block()?;
         Ok(Stmt::Loop { body })
     }
 
-    fn parse_match(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_match(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let expr = self.parse_expr()?;
         let arms = self.parse_arms()?;
         Ok(Stmt::Match { expr, arms })
     }
 
-    fn parse_arms(&mut self) -> Result<Vec<MatchArm>, ParseError> {
+    fn parse_arms(&mut self) -> Result<Vec<MatchArm>, AsteriError> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut arms = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
@@ -251,7 +274,7 @@ impl Parser {
         Ok(arms)
     }
 
-    fn parse_struct(&mut self) -> Result<Stmt, ParseError> {
+    fn parse_struct(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let name = self.expect_id()?;
         self.expect(TokenKind::OpeningCurly)?;
@@ -298,7 +321,7 @@ impl Parser {
         })
     }
 
-    fn parse_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    fn parse_block(&mut self) -> Result<Vec<Stmt>, AsteriError> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut stmts = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
@@ -308,14 +331,14 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn parse_assign(&mut self, name: String) -> Result<Stmt, ParseError> {
+    fn parse_assign(&mut self, name: String) -> Result<Stmt, AsteriError> {
         self.advance();
         let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Assign { name, value })
     }
 
-    fn parse_call(&mut self, name: String) -> Result<Stmt, ParseError> {
+    fn parse_call(&mut self, name: String) -> Result<Stmt, AsteriError> {
         self.advance();
         let mut args = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
@@ -340,7 +363,7 @@ impl Parser {
     // :8   parse_primary       Error:
 
     // :>
-    fn parse_expr(&mut self) -> Result<Expr, ParseError> {
+    fn parse_expr(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_logical_and()?; // 1:
         loop {
             let op = match self.kind() {
@@ -359,7 +382,7 @@ impl Parser {
     }
 
     // :1
-    fn parse_logical_and(&mut self) -> Result<Expr, ParseError> {
+    fn parse_logical_and(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_additive()?; // 2:
         loop {
             let op = match self.kind() {
@@ -378,7 +401,7 @@ impl Parser {
     }
 
     // :2
-    fn parse_additive(&mut self) -> Result<Expr, ParseError> {
+    fn parse_additive(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_comparison()?; // 3:
         while matches!(self.kind(), TokenKind::Plus | TokenKind::Minus) {
             let op = match self.kind() {
@@ -398,7 +421,7 @@ impl Parser {
     }
 
     // :3
-    fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
+    fn parse_comparison(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_bitwise()?; // 4:
         loop {
             let op = match self.kind() {
@@ -422,7 +445,7 @@ impl Parser {
     }
 
     // :4
-    fn parse_bitwise(&mut self) -> Result<Expr, ParseError> {
+    fn parse_bitwise(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_shift()?; // 5:
         loop {
             let op = match self.kind() {
@@ -443,7 +466,7 @@ impl Parser {
     }
 
     // :5
-    fn parse_shift(&mut self) -> Result<Expr, ParseError> {
+    fn parse_shift(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_term()?; // 6:
         loop {
             let op = match self.kind() {
@@ -463,7 +486,7 @@ impl Parser {
     }
 
     // :6
-    fn parse_term(&mut self) -> Result<Expr, ParseError> {
+    fn parse_term(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_unary()?; // 7:
         while matches!(self.kind(), TokenKind::Asterisk | TokenKind::Slash) {
             let op = match self.kind() {
@@ -483,7 +506,7 @@ impl Parser {
     }
 
     // :7
-    fn parse_unary(&mut self) -> Result<Expr, ParseError> {
+    fn parse_unary(&mut self) -> Result<Expr, AsteriError> {
         match self.kind() {
             TokenKind::Ampersand => {
                 self.advance();
@@ -515,7 +538,7 @@ impl Parser {
     }
 
     // :8
-    fn parse_postfix(&mut self) -> Result<Expr, ParseError> {
+    fn parse_postfix(&mut self) -> Result<Expr, AsteriError> {
         let mut expr = self.parse_primary()?; // 9:
         while matches!(self.kind(), TokenKind::Caret) {
             self.advance();
@@ -525,7 +548,7 @@ impl Parser {
     }
 
     // :9
-    fn parse_primary(&mut self) -> Result<Expr, ParseError> {
+    fn parse_primary(&mut self) -> Result<Expr, AsteriError> {
         match self.kind() {
             TokenKind::OpeningRound => {
                 self.advance();
@@ -597,7 +620,7 @@ impl Parser {
         self.current >= self.tokens.len() - 1
     }
 
-    fn expect(&mut self, expected: TokenKind) -> Result<(), ParseError> {
+    fn expect(&mut self, expected: TokenKind) -> Result<(), AsteriError> {
         if std::mem::discriminant(self.kind()) == std::mem::discriminant(&expected) {
             self.advance();
             Ok(())
@@ -606,7 +629,7 @@ impl Parser {
         }
     }
 
-    fn expect_id(&mut self) -> Result<String, ParseError> {
+    fn expect_id(&mut self) -> Result<String, AsteriError> {
         if let TokenKind::Id(s) = self.kind() {
             let s = s.clone();
             self.advance();
@@ -616,7 +639,7 @@ impl Parser {
         }
     }
 
-    fn expect_type(&mut self) -> Result<Types, ParseError> {
+    fn expect_type(&mut self) -> Result<Types, AsteriError> {
         // ^ A pointer that can't be null
         if matches!(self.kind(), TokenKind::Caret) {
             self.advance();
@@ -639,14 +662,6 @@ impl Parser {
             Ok(tp)
         } else {
             Err(self.error("Expected Type"))
-        }
-    }
-
-    fn error(&self, content: &str) -> ParseError {
-        let index = self.current.min(self.tokens.len() - 1);
-        ParseError {
-            content: content.to_string(),
-            line: self.tokens[index].span.line,
         }
     }
 }
