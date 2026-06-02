@@ -1,19 +1,6 @@
 use crate::ast::{BinaryOp, Expr, Stmt, Types};
+use crate::error::{AsteriError, ErrorKind};
 use std::collections::HashMap;
-
-#[derive(Debug)]
-pub struct SemaError {
-    pub content: String,
-    pub line: usize,
-}
-
-impl std::fmt::Display for SemaError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\t<Sema>\n{} |\t{}", self.line, self.content)
-    }
-}
-
-impl std::error::Error for SemaError {}
 
 #[derive(Debug, Clone)]
 pub enum Symbol {
@@ -30,25 +17,36 @@ pub enum Symbol {
     Struct(String),
 }
 
-pub struct Sema {
+pub struct Sema<'a> {
+    input: &'a str,
     scopes: Vec<HashMap<String, Symbol>>,
+    errors: Vec<AsteriError>,
+    warnings: Vec<AsteriError>,
+    info: Vec<AsteriError>,
 }
 
-impl Sema {
-    pub fn new() -> Self {
+impl<'a> Sema<'a> {
+    pub fn new(input: &'a str) -> Self {
         Self {
+            input,
             scopes: vec![HashMap::new()],
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            info: Vec::new(),
         }
     }
 
-    pub fn analyze(&mut self, stmts: &[Stmt]) -> Result<(), SemaError> {
+    pub fn analyze(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
-            self.check_stmt(stmt)?;
+            self.check_stmt(stmt);
         }
-        Ok(())
     }
 
-    fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), SemaError> {
+    fn error(&self, msg: impl Into<String>) -> AsteriError {
+        AsteriError::new(ErrorKind::Parser, 1, "".to_string(), msg.into())
+    }
+
+    fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         match stmt {
             Stmt::Print(expr) => {
                 self.check_expr(expr)?;
@@ -61,7 +59,7 @@ impl Sema {
         }
     }
 
-    fn check_expr(&mut self, expr: &Expr) -> Result<Types, SemaError> {
+    fn check_expr(&mut self, expr: &Expr) -> Result<Types, AsteriError> {
         match expr {
             Expr::Int(_) => Ok(Types::I64),
             Expr::Float(_) => Ok(Types::F64),
@@ -77,7 +75,7 @@ impl Sema {
         }
     }
 
-    fn check_let(&mut self, stmt: &Stmt) -> Result<(), SemaError> {
+    fn check_let(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         if let Stmt::Let { name, tp, value } = stmt {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
                 return Err(self.error(&format!("|{}| is already declared in this scope", name)));
@@ -100,7 +98,7 @@ impl Sema {
         Ok(())
     }
 
-    fn check_immut(&mut self, stmt: &Stmt) -> Result<(), SemaError> {
+    fn check_immut(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         if let Stmt::Immut { name, tp, value } = stmt {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
                 return Err(self.error(&format!("|{}| is already declared in this scope", name)));
@@ -123,7 +121,7 @@ impl Sema {
         Ok(())
     }
 
-    fn check_assign(&mut self, stmt: &Stmt) -> Result<(), SemaError> {
+    fn check_assign(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         if let Stmt::Assign { name, value } = stmt {
             let var_tp = match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
@@ -149,7 +147,7 @@ impl Sema {
         left: &Expr,
         op: &BinaryOp,
         right: &Expr,
-    ) -> Result<Types, SemaError> {
+    ) -> Result<Types, AsteriError> {
         let lt = self.check_expr(left)?;
         let rt = self.check_expr(right)?;
         if !is_compatible(&lt, &rt) {
@@ -182,11 +180,8 @@ impl Sema {
         None
     }
 
-    fn error(&self, content: &str) -> SemaError {
-        SemaError {
-            content: content.to_string(),
-            line: 1, // dummy
-        }
+    pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {
+        (self.errors, self.warnings, self.info)
     }
 }
 

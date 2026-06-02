@@ -31,15 +31,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Parser
-    let mut parser = parser::Parser::new(tokens);
+    let mut parser = parser::Parser::new(tokens, &input);
     let stmts = parser.parse();
     let (errors, warnings, info) = parser.take_all();
     if error::report_and_check(errors, warnings, info) {
         return Ok(());
     }
 
-    let mut sema = sema::Sema::new();
-    sema.analyze(&stmts)?;
+    println!("{:#?}", stmts);
+
+    let mut sema = sema::Sema::new(&input);
+    let (errors, warnings, info) = sema.take_all();
+    if error::report_and_check(errors, warnings, info) {
+        return Ok(());
+    }
 
     Ok(())
 }

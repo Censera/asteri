@@ -48,13 +48,17 @@ pub fn report_and_check(
     if !errors.is_empty() {
         eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
         for e in &errors {
+            let underline = "-".repeat(e.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {} {}<- {}{}",
-                Color::BOLD,
+                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                Color::RED,
                 e.line,
                 Color::RESET,
+                Color::BOLD,
                 e.src_line,
+                Color::RESET,
                 Color::RED,
+                underline,
                 e.msg,
                 Color::RESET
             );
@@ -63,31 +67,39 @@ pub fn report_and_check(
     if !warnings.is_empty() {
         eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
         for w in &warnings {
+            let underline = "-".repeat(w.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {} {}<- {}{}",
-                Color::BOLD,
+                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                Color::YELLOW,
                 w.line,
                 Color::RESET,
+                Color::BOLD,
                 w.src_line,
+                Color::RESET,
                 Color::YELLOW,
+                underline,
                 w.msg,
                 Color::RESET
-            )
+            );
         }
     }
     if !info.is_empty() {
         eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
         for i in &info {
+            let underline = "-".repeat(i.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {} {}<- {}{}",
-                Color::BOLD,
+                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                Color::BLUE,
                 i.line,
                 Color::RESET,
+                Color::BOLD,
                 i.src_line,
-                Color::RED,
+                Color::RESET,
+                Color::BLUE,
+                underline,
                 i.msg,
                 Color::RESET
-            )
+            );
         }
     }
     !errors.is_empty()

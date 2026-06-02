@@ -4,7 +4,8 @@ use crate::ast::{
 use crate::error::{AsteriError, ErrorKind};
 use crate::lexer::{Token, TokenKind, Types};
 
-pub struct Parser {
+pub struct Parser<'a> {
+    input: &'a str,
     tokens: Vec<Token>,
     current: usize,
     errors: Vec<AsteriError>,
@@ -12,9 +13,10 @@ pub struct Parser {
     info: Vec<AsteriError>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: Vec<Token>, input: &'a str) -> Self {
         Self {
+            input,
             tokens,
             current: 0,
             errors: Vec::new(),
@@ -52,13 +54,23 @@ impl Parser {
         }
     }
 
-    fn error(&self, msg: &str) -> AsteriError {
+    fn error(&self, msg: impl Into<String>) -> AsteriError {
         let index = self.current.min(self.tokens.len() - 1);
+        let token = &self.tokens[index];
+
+        let line = token.span.line;
+        let src_line = self
+            .input
+            .lines()
+            .nth(line.saturating_sub(1))
+            .unwrap_or("")
+            .to_string();
+
         AsteriError::new(
             ErrorKind::Parser,
             self.tokens[index].span.line,
-            "".to_string(),
-            msg.to_string(),
+            src_line,
+            msg.into(),
         )
     }
 
@@ -81,10 +93,10 @@ impl Parser {
                 match self.kind() {
                     TokenKind::Equal => self.parse_assign(name),
                     TokenKind::OpeningRound => self.parse_call(name),
-                    _ => Err(self.error("Unexpected Token")),
+                    _ => Err(self.error("unexpected identifier")),
                 }
             }
-            _ => Err(self.error("Unexpected Token")),
+            _ => Err(self.error("unexpected keyword")),
         }
     }
 
@@ -194,7 +206,7 @@ impl Parser {
         let mut depth = 1;
         while depth > 0 {
             match self.kind() {
-                TokenKind::EOF => return Err(self.error("Unterminated C Block")),
+                TokenKind::EOF => return Err(self.error("unterminated C block")),
                 TokenKind::OpeningCurly => {
                     depth += 1;
                     raw_c.push('{');
@@ -601,7 +613,7 @@ impl Parser {
                     Ok(Expr::Id(name))
                 }
             }
-            _ => Err(self.error("Expected Expression")), // :Error
+            _ => Err(self.error("expected expression")), // :Error
         }
     }
 
@@ -629,7 +641,7 @@ impl Parser {
             self.advance();
             Ok(())
         } else {
-            Err(self.error(&format!("Expected {:?}", expected)))
+            Err(self.error(&format!("expected {:?}", expected)))
         }
     }
 
@@ -639,7 +651,7 @@ impl Parser {
             self.advance();
             Ok(s)
         } else {
-            Err(self.error("Expected Identifier"))
+            Err(self.error("expected a variable"))
         }
     }
 
@@ -665,7 +677,7 @@ impl Parser {
             self.advance();
             Ok(tp)
         } else {
-            Err(self.error("Expected Type"))
+            Err(self.error("expected to specify a type"))
         }
     }
 
