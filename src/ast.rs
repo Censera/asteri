@@ -112,11 +112,13 @@ pub enum Stmt {
         condition: Expr,
         body: Vec<Stmt>,
         else_branch: Option<Box<Stmt>>,
+        line: usize,
     },
 
     While {
         condition: Expr,
         body: Vec<Stmt>,
+        line: usize,
     },
 
     Loop {

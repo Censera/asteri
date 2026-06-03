@@ -1,5 +1,4 @@
 use crate::error::{AsteriError, ErrorKind};
-use std::fmt;
 
 // Tokens
 #[derive(Debug)]

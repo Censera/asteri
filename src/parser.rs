@@ -64,7 +64,9 @@ impl<'a> Parser<'a> {
             .lines()
             .nth(line.saturating_sub(1))
             .unwrap_or(&format!("Somewhere in the line: {}", line))
-            .to_string();
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
 
         AsteriError::new(
             ErrorKind::Parser,
@@ -254,10 +256,12 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+        let line = self.line();
         Ok(Stmt::If {
             condition,
             body,
             else_branch,
+            line,
         })
     }
 
@@ -265,7 +269,12 @@ impl<'a> Parser<'a> {
         self.advance();
         let condition = self.parse_expr()?;
         let body = self.parse_block()?;
-        Ok(Stmt::While { condition, body })
+        let line = self.line();
+        Ok(Stmt::While {
+            condition,
+            body,
+            line,
+        })
     }
 
     fn parse_loop(&mut self) -> Result<Stmt, AsteriError> {

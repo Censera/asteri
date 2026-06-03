@@ -52,7 +52,9 @@ impl<'a> Sema<'a> {
             .lines()
             .nth(line.saturating_sub(1))
             .unwrap_or(&format!("Somewhere in the line: {}", line))
-            .to_string();
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         AsteriError::new(ErrorKind::Sema, line, src_line, msg.into())
     }
 
@@ -67,6 +69,8 @@ impl<'a> Sema<'a> {
             Stmt::Assign { .. } => self.check_assign(stmt),
             Stmt::Fun { .. } => self.check_fun(stmt),
             Stmt::Ret { .. } => self.check_ret(stmt),
+            Stmt::If { .. } => self.check_if(stmt),
+            Stmt::While { .. } => self.check_while(stmt),
             _ => Ok(()),
         }
     }
@@ -88,7 +92,7 @@ impl<'a> Sema<'a> {
                 Some(_) => Err(self.error(0, &format!("'{}' is not a variable", name))),
                 None => Err(self.error(0, &format!("'{}' is an undefined variable", name))),
             },
-            _ => Err(self.error(0, "Unimplemented expression")),
+            _ => Err(self.error(0, "unimplemented expression")),
         }
     }
 
@@ -138,7 +142,7 @@ impl<'a> Sema<'a> {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
                 return Err(self.error(
                     *line,
-                    &format!("|{}| is already declared in this scope", name),
+                    &format!("'{}' is already declared in this scope", name),
                 ));
             }
             if let Some(expr) = value {
@@ -164,7 +168,7 @@ impl<'a> Sema<'a> {
             let var_tp = match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
                 Some(Symbol::Variable { tp: _, immut: true }) => {
-                    return Err(self.error(0, &format!("{} is immutable", name)))
+                    return Err(self.error(*line, &format!("{} is immutable", name)))
                 }
                 Some(_) => return Err(self.error(*line, &format!("{} is not a variable", name))),
                 None => {
@@ -260,6 +264,71 @@ impl<'a> Sema<'a> {
                 (Some(_), None) => return Err(self.error(*line, "Unexpected return value")),
                 (None, None) => {}
             }
+        }
+        Ok(())
+    }
+
+    fn check_if(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        if let Stmt::If {
+            condition,
+            body,
+            else_branch,
+            line,
+        } = stmt
+        {
+            let cd_tp = self.check_expr(condition)?;
+            if cd_tp != Types::Bool {
+                return Err(self.error(*line, "if condition must be a boolean"));
+            }
+            self.push();
+            for stmt in body {
+                if let Err(e) = self.check_stmt(stmt) {
+                    self.errors.push(e)
+                }
+            }
+            self.pop();
+            if let Some(else_stmt) = else_branch {
+                self.push();
+                if let Err(e) = self.check_stmt(else_stmt) {
+                    self.errors.push(e)
+                }
+                self.pop();
+            }
+        }
+        Ok(())
+    }
+
+    fn check_while(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        if let Stmt::While {
+            condition,
+            body,
+            line,
+        } = stmt
+        {
+            let cd_tp = self.check_expr(condition)?;
+            if cd_tp != Types::Bool {
+                return Err(self.error(*line, "while condition must be a boolean"));
+            }
+            self.push();
+            for stmt in body {
+                if let Err(e) = self.check_stmt(stmt) {
+                    self.errors.push(e)
+                }
+            }
+            self.pop();
+        }
+        Ok(())
+    }
+
+    fn check_loop(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        if let Stmt::Loop { body } = stmt {
+            self.push();
+            for stmt in body {
+                if let Err(e) = self.check_stmt(stmt) {
+                    self.errors.push(e)
+                }
+            }
+            self.pop();
         }
         Ok(())
     }

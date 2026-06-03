@@ -17,7 +17,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let file_path = &args[1];
     let input = read_to_string(file_path)?;
-    let lines: Vec<&str> = input.lines().collect();
 
     // Lexer
     let mut lexer = lexer::Lexer::new(&input);

@@ -1,15 +1,14 @@
-fn hello() {
-    return 2;
+let a: bool = true;
+let b: bool = true;
+
+while a && b {
+    let p: i32 = &a;
+    p^ = 1;
 }
-fn hello() {
-    return 2;
-}
-fn hello() {
-    return 2;
-}
-fn hello() {
-    return 2;
-}
-fn hello() {
-    return 2;
+
+loop {
+    let p:  i32 = &a;
+    if ^p > 0 {
+        let : i32 = 1;
+    }
 }
