@@ -133,6 +133,7 @@ pub enum Stmt {
         name: String,
         params: Vec<(String, Types)>,
         body: Vec<Stmt>,
+        line: usize,
     },
 
     Call {
@@ -146,7 +147,11 @@ pub enum Stmt {
         methods: Vec<StructMethod>,
     },
 
+    Ret {
+        expr: Option<Expr>,
+        line: usize,
+    },
+
     CBlock(String),
     Block(Vec<Stmt>),
-    Ret(Option<Expr>),
 }

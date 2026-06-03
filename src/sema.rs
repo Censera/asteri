@@ -20,6 +20,7 @@ pub enum Symbol {
 pub struct Sema<'a> {
     input: &'a str,
     scopes: Vec<HashMap<String, Symbol>>,
+    returns: Option<Types>,
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
     info: Vec<AsteriError>,
@@ -30,6 +31,7 @@ impl<'a> Sema<'a> {
         Self {
             input,
             scopes: vec![HashMap::new()],
+            returns: None,
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -63,6 +65,8 @@ impl<'a> Sema<'a> {
             Stmt::Let { .. } => self.check_let(stmt),
             Stmt::Immut { .. } => self.check_immut(stmt),
             Stmt::Assign { .. } => self.check_assign(stmt),
+            Stmt::Fun { .. } => self.check_fun(stmt),
+            Stmt::Ret { .. } => self.check_ret(stmt),
             _ => Ok(()),
         }
     }
@@ -197,6 +201,67 @@ impl<'a> Sema<'a> {
             ));
         }
         Ok(lt)
+    }
+
+    fn check_fun(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        let Stmt::Fun {
+            rt_tp,
+            name,
+            params,
+            body,
+            line,
+        } = stmt
+        else {
+            unreachable!()
+        };
+        self.define(
+            name.clone(),
+            Symbol::Fun {
+                params: params.iter().map(|(_, t)| t.clone()).collect(),
+                return_type: rt_tp.clone(),
+            },
+        );
+        let previous = self.returns.clone();
+        self.returns = rt_tp.clone();
+        self.push();
+        for (p_name, p_type) in params {
+            self.define(
+                p_name.clone(),
+                Symbol::Variable {
+                    tp: p_type.clone(),
+                    immut: false,
+                },
+            );
+        }
+        for stmt in body {
+            if let Err(e) = self.check_stmt(stmt) {
+                self.errors.push(e)
+            }
+        }
+        self.pop();
+        self.returns = previous;
+        Ok(())
+    }
+
+    fn check_ret(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        if let Stmt::Ret { expr, line } = stmt {
+            let exp_rt = self.returns.clone();
+            match (expr, exp_rt) {
+                (Some(e), Some(rt)) => {
+                    let t = self.check_expr(e)?;
+                    if !is_compatible(&rt, &t) {
+                        return Err(self.error(
+                            *line,
+                            &format!("return type mismatch, expected: {:?}, got: {:?}", rt, t),
+                        ));
+                    }
+                }
+                (None, Some(_)) => return Err(self.error(*line, "Missing a return value")),
+                (Some(_), None) => return Err(self.error(*line, "Unexpected return value")),
+                (None, None) => {}
+            }
+        }
+        Ok(())
     }
 
     fn push(&mut self) {

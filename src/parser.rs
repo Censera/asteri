@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
-        let line = self.tokens[self.current - 1].span.line;
+        let line = self.line();
         Ok(Stmt::Let {
             name,
             tp: Some(tp),
@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
-        let line = self.tokens[self.current - 1].span.line;
+        let line = self.line();
         Ok(Stmt::Immut {
             name,
             tp: Some(tp),
@@ -169,11 +169,13 @@ impl<'a> Parser<'a> {
         let params = self.parse_params()?;
         self.expect(TokenKind::ClosingRound)?;
         let body = self.parse_block()?;
+        let line = self.line();
         Ok(Stmt::Fun {
             rt_tp,
             name,
             params,
             body,
+            line,
         })
     }
 
@@ -193,13 +195,17 @@ impl<'a> Parser<'a> {
 
     fn parse_ret(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         if matches!(self.kind(), TokenKind::Semicolon) {
             self.advance();
-            Ok(Stmt::Ret(None))
+            Ok(Stmt::Ret { expr: None, line })
         } else {
             let expr = self.parse_expr()?;
             self.expect(TokenKind::Semicolon)?;
-            Ok(Stmt::Ret(Some(expr)))
+            Ok(Stmt::Ret {
+                expr: Some(expr),
+                line,
+            })
         }
     }
 
@@ -355,7 +361,7 @@ impl<'a> Parser<'a> {
         self.advance();
         let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-        let line = self.tokens[self.current - 1].span.line;
+        let line = self.line();
         Ok(Stmt::Assign { name, value, line })
     }
 
@@ -414,7 +420,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_additive()?; // 2:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -436,7 +442,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_comparison()?; // 3:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -462,7 +468,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_bitwise()?; // 4:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -485,7 +491,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_shift()?; // 5:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -507,7 +513,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_term()?; // 6:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -529,7 +535,7 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_unary()?; // 7:
-            let line = self.tokens[self.current - 1].span.line;
+            let line = self.line();
             left = Expr::Binary {
                 left: Box::new(left),
                 op,

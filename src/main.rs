@@ -6,7 +6,6 @@ mod sema;
 
 use std::env::*;
 use std::fs::*;
-use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();

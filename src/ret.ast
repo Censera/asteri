@@ -1,10 +1,15 @@
-let a: i32 = 1;
-let a: i4 = 2;
-
-let b: i32 = x;
-
-immut c: i32 = 1;
-c = 2;
-
-let d: i32 = 1;
-d = 3.14;
+fn hello() {
+    return 2;
+}
+fn hello() {
+    return 2;
+}
+fn hello() {
+    return 2;
+}
+fn hello() {
+    return 2;
+}
+fn hello() {
+    return 2;
+}
