@@ -672,7 +672,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_eof(&self) -> bool {
-        self.current >= self.tokens.len() - 1
+        self.current >= self.tokens.len() - 1 || matches!(self.kind(), TokenKind::EOF)
     }
 
     fn expect(&mut self, expected: TokenKind) -> Result<(), AsteriError> {
