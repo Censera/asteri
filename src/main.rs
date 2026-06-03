@@ -22,7 +22,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lexer = lexer::Lexer::new(&input);
     let mut tokens = Vec::new();
     while let Some(token) = lexer.next_token() {
+        let is_eof = matches!(token.kind, lexer::TokenKind::EOF);
         tokens.push(token);
+        if is_eof {
+            break;
+        }
     }
     let (errors, warnings, info) = lexer.take_all();
     if error::report_and_check(errors, warnings, info) {

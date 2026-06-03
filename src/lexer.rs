@@ -185,7 +185,12 @@ impl Lexer {
 
         let c = match self.current_char() {
             Some(c) => c,
-            None => return None,
+            None => {
+                return Some(Token::new(
+                    TokenKind::EOF,
+                    TextSpan::new(self.current, self.current, "".to_string(), self.line),
+                ));
+            }
         };
 
         let token_line = self.line;
@@ -312,7 +317,7 @@ impl Lexer {
                 '\'' => self.char_token(),
                 _ => {
                     self.error("Unexpected character");
-                    TokenKind::EOF // Placeholder token kind for invalid character
+                    TokenKind::EOF
                 }
             }
         };

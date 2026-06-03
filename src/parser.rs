@@ -47,6 +47,7 @@ impl<'a> Parser<'a> {
                     return;
                 }
                 TokenKind::ClosingCurly => {
+                    self.advance();
                     return;
                 }
                 _ => self.advance(),
