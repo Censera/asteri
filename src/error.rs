@@ -48,7 +48,7 @@ pub fn report_and_check(
     if !errors.is_empty() {
         eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
         for e in &errors {
-            let underline = "-".repeat(e.src_line.len());
+            let underline = "*".repeat(e.src_line.len());
             eprintln!(
                 "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
                 Color::RED,
@@ -86,7 +86,7 @@ pub fn report_and_check(
     if !info.is_empty() {
         eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
         for i in &info {
-            let underline = "-".repeat(i.src_line.len());
+            let underline = "".repeat(i.src_line.len());
             eprintln!(
                 "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
                 Color::BLUE,

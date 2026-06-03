@@ -81,8 +81,8 @@ impl<'a> Sema<'a> {
             } => self.check_binary(left, op, right, *line),
             Expr::Id(name) => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
-                Some(_) => Err(self.error(0, &format!("{} is not a variable", name))),
-                None => Err(self.error(0, &format!("{} is an undefined variable", name))),
+                Some(_) => Err(self.error(0, &format!("'{}' is not a variable", name))),
+                None => Err(self.error(0, &format!("'{}' is an undefined variable", name))),
             },
             _ => Err(self.error(0, "Unimplemented expression")),
         }
@@ -99,7 +99,7 @@ impl<'a> Sema<'a> {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
                 return Err(self.error(
                     *line,
-                    &format!("|{}| is already declared in this scope", name),
+                    &format!("'{}' is already declared in this scope", name),
                 ));
             }
             if let Some(expr) = value {
@@ -114,7 +114,10 @@ impl<'a> Sema<'a> {
                     },
                 );
             } else {
-                return Err(self.error(*line, "let declaration missing type"));
+                return Err(self.error(
+                    *line,
+                    &format!("let declaration missing type: 'let {}: ? = ...,", name),
+                ));
             }
         }
         Ok(())

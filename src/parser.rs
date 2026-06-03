@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
             .input
             .lines()
             .nth(line.saturating_sub(1))
-            .unwrap_or("")
+            .unwrap_or(&format!("Somewhere in the line: {}", line))
             .to_string();
 
         AsteriError::new(
@@ -700,7 +700,7 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(tp)
         } else {
-            Err(self.error("expected to specify a type"))
+            Err(self.error("Expected to specify a known type"))
         }
     }
 
