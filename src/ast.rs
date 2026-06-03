@@ -68,6 +68,7 @@ pub enum Expr {
         left: Box<Expr>,
         op: BinaryOp,
         right: Box<Expr>,
+        line: usize,
     },
     Call {
         name: String,
@@ -91,17 +92,20 @@ pub enum Stmt {
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
+        line: usize,
     },
 
     Immut {
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
+        line: usize,
     },
 
     Assign {
         name: String,
         value: Expr,
+        line: usize,
     },
 
     If {

@@ -6,6 +6,7 @@ mod sema;
 
 use std::env::*;
 use std::fs::*;
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();
@@ -38,9 +39,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    println!("{:#?}", stmts);
-
+    // Sematic Analysis
     let mut sema = sema::Sema::new(&input);
+    sema.analyze(&stmts);
     let (errors, warnings, info) = sema.take_all();
     if error::report_and_check(errors, warnings, info) {
         return Ok(());

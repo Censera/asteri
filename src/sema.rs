@@ -38,12 +38,15 @@ impl<'a> Sema<'a> {
 
     pub fn analyze(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
+            if let Err(e) = self.check_stmt(stmt) {
+                self.errors.push(e);
+            }
             self.check_stmt(stmt);
         }
     }
 
-    fn error(&self, msg: impl Into<String>) -> AsteriError {
-        AsteriError::new(ErrorKind::Parser, 1, "".to_string(), msg.into())
+    fn error(&self, line: usize, msg: impl Into<String>) -> AsteriError {
+        AsteriError::new(ErrorKind::Parser, line, "".to_string(), msg.into())
     }
 
     fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
@@ -65,20 +68,34 @@ impl<'a> Sema<'a> {
             Expr::Float(_) => Ok(Types::F64),
             Expr::Bool(_) => Ok(Types::Bool),
             Expr::Str(_) => Ok(Types::String),
-            Expr::Binary { left, op, right } => self.check_binary(left, op, right),
+            Expr::Binary {
+                left,
+                op,
+                right,
+                line,
+            } => self.check_binary(left, op, right, *line),
             Expr::Id(name) => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
-                Some(_) => Err(self.error(&format!("{} is not a variable", name))),
-                None => Err(self.error(&format!("{} is an undefined variable", name))),
+                Some(_) => Err(self.error(0, &format!("{} is not a variable", name))),
+                None => Err(self.error(0, &format!("{} is an undefined variable", name))),
             },
-            _ => Err(self.error("Unimplemented expression")),
+            _ => Err(self.error(0, "Unimplemented expression")),
         }
     }
 
     fn check_let(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Let { name, tp, value } = stmt {
+        if let Stmt::Let {
+            name,
+            tp,
+            value,
+            line,
+        } = stmt
+        {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
-                return Err(self.error(&format!("|{}| is already declared in this scope", name)));
+                return Err(self.error(
+                    *line,
+                    &format!("|{}| is already declared in this scope", name),
+                ));
             }
             if let Some(expr) = value {
                 self.check_expr(expr)?;
@@ -92,16 +109,25 @@ impl<'a> Sema<'a> {
                     },
                 );
             } else {
-                return Err(self.error("let declaration missing type"));
+                return Err(self.error(*line, "let declaration missing type"));
             }
         }
         Ok(())
     }
 
     fn check_immut(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Immut { name, tp, value } = stmt {
+        if let Stmt::Immut {
+            name,
+            tp,
+            value,
+            line,
+        } = stmt
+        {
             if self.scopes.last().unwrap().contains_key(name.as_str()) {
-                return Err(self.error(&format!("|{}| is already declared in this scope", name)));
+                return Err(self.error(
+                    *line,
+                    &format!("|{}| is already declared in this scope", name),
+                ));
             }
             if let Some(expr) = value {
                 self.check_expr(expr)?;
@@ -115,28 +141,30 @@ impl<'a> Sema<'a> {
                     },
                 );
             } else {
-                return Err(self.error("immut declaration missing type"));
+                return Err(self.error(*line, "immut declaration missing type"));
             }
         }
         Ok(())
     }
 
     fn check_assign(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Assign { name, value } = stmt {
+        if let Stmt::Assign { name, value, line } = stmt {
             let var_tp = match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
                 Some(Symbol::Variable { tp: _, immut: true }) => {
-                    return Err(self.error(&format!("{} is immutable", name)))
+                    return Err(self.error(0, &format!("{} is immutable", name)))
                 }
-                Some(_) => return Err(self.error(&format!("{} is not a variable", name))),
-                None => return Err(self.error(&format!("{} is an undefined variable", name))),
+                Some(_) => return Err(self.error(*line, &format!("{} is not a variable", name))),
+                None => {
+                    return Err(self.error(*line, &format!("{} is an undefined variable", name)))
+                }
             };
             let val_tp = self.check_expr(value)?;
             if !is_compatible(&var_tp, &val_tp) {
-                return Err(self.error(&format!(
-                    "Type mismatch: expected {:?}, got {:?}",
-                    var_tp, val_tp
-                )));
+                return Err(self.error(
+                    *line,
+                    &format!("Type mismatch: expected {:?}, got {:?}", var_tp, val_tp),
+                ));
             }
         }
         Ok(())
@@ -147,14 +175,18 @@ impl<'a> Sema<'a> {
         left: &Expr,
         op: &BinaryOp,
         right: &Expr,
+        line: usize,
     ) -> Result<Types, AsteriError> {
         let lt = self.check_expr(left)?;
         let rt = self.check_expr(right)?;
         if !is_compatible(&lt, &rt) {
-            return Err(self.error(&format!(
-                "Type mismatch in binary opration: {:?} {:?} {:?}",
-                lt, op, rt
-            )));
+            return Err(self.error(
+                line,
+                &format!(
+                    "Type mismatch in binary opration: {:?} {:?} {:?}",
+                    lt, op, rt
+                ),
+            ));
         }
         Ok(lt)
     }

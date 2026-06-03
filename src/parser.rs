@@ -112,10 +112,12 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
+        let line = self.tokens[self.current - 1].span.line;
         Ok(Stmt::Let {
             name,
             tp: Some(tp),
             value,
+            line,
         })
     }
 
@@ -131,10 +133,12 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
+        let line = self.tokens[self.current - 1].span.line;
         Ok(Stmt::Immut {
             name,
             tp: Some(tp),
             value,
+            line,
         })
     }
 
@@ -351,7 +355,8 @@ impl<'a> Parser<'a> {
         self.advance();
         let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Assign { name, value })
+        let line = self.tokens[self.current - 1].span.line;
+        Ok(Stmt::Assign { name, value, line })
     }
 
     fn parse_call(&mut self, name: String) -> Result<Stmt, AsteriError> {
@@ -388,10 +393,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_logical_and()?; // 1:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -407,10 +414,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_additive()?; // 2:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -427,10 +436,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_comparison()?; // 3:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -451,10 +462,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_bitwise()?; // 4:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -472,10 +485,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_shift()?; // 5:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -492,10 +507,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_term()?; // 6:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -512,10 +529,12 @@ impl<'a> Parser<'a> {
             };
             self.advance();
             let right = self.parse_unary()?; // 7:
+            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
+                line,
             };
         }
         Ok(left)
@@ -615,6 +634,10 @@ impl<'a> Parser<'a> {
             }
             _ => Err(self.error("expected expression")), // :Error
         }
+    }
+
+    fn line(&self) -> usize {
+        self.tokens[self.current - 1].span.line
     }
 
     fn kind(&self) -> &TokenKind {
