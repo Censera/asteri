@@ -41,12 +41,17 @@ impl<'a> Sema<'a> {
             if let Err(e) = self.check_stmt(stmt) {
                 self.errors.push(e);
             }
-            self.check_stmt(stmt);
         }
     }
 
     fn error(&self, line: usize, msg: impl Into<String>) -> AsteriError {
-        AsteriError::new(ErrorKind::Parser, line, "".to_string(), msg.into())
+        let src_line = self
+            .input
+            .lines()
+            .nth(line.saturating_sub(1))
+            .unwrap_or(&format!("Somewhere in the line: {}", line))
+            .to_string();
+        AsteriError::new(ErrorKind::Sema, line, src_line, msg.into())
     }
 
     fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
