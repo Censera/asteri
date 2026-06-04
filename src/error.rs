@@ -76,7 +76,7 @@ pub fn report_and_check(
     }
 
     if !warnings.is_empty() {
-        eprintln!("\t{} WARNINGS {}", Color::WARNINGS, Color::RESET);
+        eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
         for w in &warnings {
             let msg = format!(
                 "{}{:>4} | {}{}{}{} {}-> {}{}",

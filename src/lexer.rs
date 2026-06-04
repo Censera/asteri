@@ -49,6 +49,9 @@ pub enum TokenKind {
     ShiftRight,
     TwoAmpersands,
     TwoPipes,
+    Vector,
+    VecPush,
+    VecPop,
 
     // Keywords
     Append,
@@ -124,6 +127,9 @@ pub enum Types {
     F32,
     F64,
     String,
+    Str,
+    Cstr,
+    Istr,
     Bool,
     Char,
     File,
@@ -204,17 +210,17 @@ impl Lexer {
                 "immut" | "immutable" => TokenKind::Immut,
                 "let" => TokenKind::Let,
 
-                "break" => TokenKind::Break,
-                "cont" | "continue" => TokenKind::Continue,
+                "brk" | "break" => TokenKind::Break,
+                "cnt" | "cont" | "continue" => TokenKind::Continue,
                 "else" => TokenKind::Else,
                 "if" => TokenKind::If,
                 "loop" => TokenKind::Loop,
                 "match" => TokenKind::Match,
-                "ret" | "return" => TokenKind::Ret,
+                "rt" | "return" => TokenKind::Ret,
                 "while" => TokenKind::While,
 
                 "enum" | "enumeration" => TokenKind::Enum,
-                "fn" | "fun" | "function" => TokenKind::Fun,
+                "fn" | "fun" | "func" | "function" => TokenKind::Fun,
                 "form" => TokenKind::Form,
                 "struct" | "structure" => TokenKind::Struct,
                 "use" => TokenKind::Use,
@@ -231,21 +237,24 @@ impl Lexer {
                 "sort" => TokenKind::Sort,
                 "write" => TokenKind::Write,
 
-                "xor" => TokenKind::BitXor,
-                "bor" => TokenKind::BitOr,
-                "band" => TokenKind::BitAnd,
-                "bnot" => TokenKind::BitNot,
+                "BitXor" => TokenKind::BitXor,
+                "BitOr" => TokenKind::BitOr,
+                "BitAnd" => TokenKind::BitAnd,
+                "BitNot" => TokenKind::BitNot,
 
-                "err" | "error" => TokenKind::Error,
+                "error" => TokenKind::Error,
                 "false" => TokenKind::False,
                 "new" => TokenKind::New,
-                "null" | "undefined" => TokenKind::Null,
+                "NULL" => TokenKind::Null,
                 "true" => TokenKind::True,
 
                 "bool" | "boolean" => TokenKind::Type(Types::Bool),
                 "char" => TokenKind::Type(Types::Char),
                 "file" => TokenKind::Type(Types::File),
                 "string" => TokenKind::Type(Types::String),
+                "str" => TokenKind::Type(Types::Str),
+                "cstr" => TokenKind::Type(Types::Cstr),
+                "istr" => TokenKind::Type(Types::Istr),
 
                 "i8" => TokenKind::Type(Types::I8),
                 "i16" => TokenKind::Type(Types::I16),
@@ -253,11 +262,11 @@ impl Lexer {
                 "i64" => TokenKind::Type(Types::I64),
                 "u8" => TokenKind::Type(Types::U8),
                 "u16" => TokenKind::Type(Types::U16),
-                "u32" => TokenKind::Type(Types::U32),
+                "u32" | "uint" => TokenKind::Type(Types::U32),
                 "u64" => TokenKind::Type(Types::U64),
 
-                "f32" | "float" | "decimal" => TokenKind::Type(Types::F32),
-                "f64" => TokenKind::Type(Types::F64),
+                "f32" | "float" => TokenKind::Type(Types::F32),
+                "f64" | "double" => TokenKind::Type(Types::F64),
                 "mat3x3" | "matrix3x3" => TokenKind::Type(Types::Matrix3x3),
                 "mat4x4" | "matrix4x4" => TokenKind::Type(Types::Matrix4x4),
                 "vec2" | "vector2" => TokenKind::Type(Types::Vector2),
@@ -282,7 +291,17 @@ impl Lexer {
                 '?' => TokenKind::Huh,
                 '=' => self.is_compound('=', TokenKind::EqualEqual, TokenKind::Equal),
                 '!' => self.is_compound('=', TokenKind::NotEqual, TokenKind::Bang),
-                '|' => self.is_compound('|', TokenKind::TwoPipes, TokenKind::Pipe),
+                '|' => match self.current_char() {
+                    Some('|') => {
+                        self.swallow();
+                        TokenKind::TwoPipes
+                    }
+                    Some('>') => {
+                        self.swallow();
+                        TokenKind::VecPop
+                    }
+                    _ => TokenKind::Pipe,
+                },
                 '&' => self.is_compound('&', TokenKind::TwoAmpersands, TokenKind::Ampersand),
                 '~' => TokenKind::Tilde,
                 '<' => match self.current_char() {
@@ -293,6 +312,14 @@ impl Lexer {
                     Some('=') => {
                         self.swallow();
                         TokenKind::LessOrEqual
+                    }
+                    Some('>') => {
+                        self.swallow();
+                        TokenKind::Vector
+                    }
+                    Some('|') => {
+                        self.swallow();
+                        TokenKind::VecPush
                     }
                     _ => TokenKind::LessThan,
                 },
