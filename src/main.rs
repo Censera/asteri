@@ -33,23 +33,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    println!("{:#?}", tokens);
+    //println!("{:#?}", tokens);
 
-    // // Parser
-    // let mut parser = parser::Parser::new(tokens, &input);
-    // let stmts = parser.parse();
-    // let (errors, warnings, info) = parser.take_all();
-    // if error::report_and_check(errors, warnings, info) {
-    //     return Ok(());
-    // }
-    //
-    // // Sematic Analysis
-    // let mut sema = sema::Sema::new(&input);
-    // sema.analyze(&stmts);
-    // let (errors, warnings, info) = sema.take_all();
-    // if error::report_and_check(errors, warnings, info) {
-    //     return Ok(());
-    // }
+    // Parser
+    let mut parser = parser::Parser::new(tokens, &input);
+    let stmts = parser.parse();
+    let (errors, warnings, info) = parser.take_all();
+    if error::report_and_check(errors, warnings, info) {
+        return Ok(());
+    }
+
+    // Sematic Analysis
+    let mut sema = sema::Sema::new(&input);
+    sema.analyze(&stmts);
+    let (errors, warnings, info) = sema.take_all();
+    if error::report_and_check(errors, warnings, info) {
+        return Ok(());
+    }
 
     Ok(())
 }
