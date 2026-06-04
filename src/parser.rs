@@ -46,10 +46,15 @@ impl<'a> Parser<'a> {
                     self.advance();
                     return;
                 }
-                TokenKind::ClosingCurly => {
-                    self.advance();
-                    return;
-                }
+                TokenKind::Let
+                | TokenKind::Immut
+                | TokenKind::Fun
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Loop
+                | TokenKind::Ret
+                | TokenKind::Struct
+                | TokenKind::EOF => return,
                 _ => self.advance(),
             }
         }
@@ -64,7 +69,7 @@ impl<'a> Parser<'a> {
             .input
             .lines()
             .nth(line.saturating_sub(1))
-            .unwrap_or(&format!("Somewhere in the line: {}", line))
+            .unwrap_or(&format!("Line: [{}]", line))
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
@@ -361,7 +366,13 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut stmts = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
-            stmts.push(self.parse_stmt()?);
+            match self.parse_stmt() {
+                Ok(s) => stmts.push(s),
+                Err(e) => {
+                    self.errors.push(e);
+                    self.recover();
+                }
+            }
         }
         self.expect(TokenKind::ClosingCurly)?;
         Ok(stmts)
@@ -648,7 +659,7 @@ impl<'a> Parser<'a> {
                     Ok(Expr::Id(name))
                 }
             }
-            _ => Err(self.error("expected expression")), // :Error
+            _ => Err(self.error("expected an expression")), // :Error
         }
     }
 
@@ -680,7 +691,7 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(())
         } else {
-            Err(self.error(&format!("expected {:?}", expected)))
+            Err(self.error(&format!("expected '{}'", to_symbol(&expected))))
         }
     }
 
@@ -716,11 +727,29 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(tp)
         } else {
-            Err(self.error("Expected to specify a known type"))
+            Err(self.error("expected to specify a known type"))
         }
     }
 
     pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {
         (self.errors, self.warnings, self.info)
+    }
+}
+
+fn to_symbol(k: &TokenKind) -> &'static str {
+    match k {
+        TokenKind::Colon => ":",
+        TokenKind::Semicolon => ";",
+        TokenKind::Comma => ",",
+        TokenKind::Equal => "=",
+        TokenKind::OpeningRound => "(",
+        TokenKind::ClosingRound => ")",
+        TokenKind::OpeningCurly => "{",
+        TokenKind::ClosingCurly => "}",
+        TokenKind::OpeningSquare => "[",
+        TokenKind::ClosingSquare => "]",
+        TokenKind::Caret => "^",
+        TokenKind::Huh => "?",
+        _ => "token",
     }
 }

@@ -1,29 +1,6 @@
-let a: bool = true;
-let b: i32 = 5;
+return 1;
 
-fn: i32 add(x: i32, y: i32) {
-    ret x + y;
-}
+let a: string;
+let b: integer;
 
-fn :i32 get() {
-    ret 42;
-}
-
-if a {
-    let c: i32 = 1;
-} else {
-    let c: i32 = 2;
-}
-
-while a {
-    let d: i32 = b + 1;
-}
-
-loop {
-    let e: i32 = 0;
-}
-
-if true {
-    ^bad;
-}
-let a: i32 = 1;
+if a + b {}

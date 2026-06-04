@@ -31,7 +31,7 @@ impl<'a> Sema<'a> {
         Self {
             input,
             scopes: vec![HashMap::new()],
-            returns: None,
+            returns: Some(Types::I8),
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -51,7 +51,7 @@ impl<'a> Sema<'a> {
             .input
             .lines()
             .nth(line.saturating_sub(1))
-            .unwrap_or(&format!("Somewhere in the line: {}", line))
+            .unwrap_or(&format!("Line: [{}]", line))
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
@@ -168,18 +168,22 @@ impl<'a> Sema<'a> {
             let var_tp = match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
                 Some(Symbol::Variable { tp: _, immut: true }) => {
-                    return Err(self.error(*line, &format!("{} is immutable", name)))
+                    return Err(self.error(*line, &format!("'{}' is immutable", name)))
                 }
-                Some(_) => return Err(self.error(*line, &format!("{} is not a variable", name))),
+                Some(_) => return Err(self.error(*line, &format!("'{}' is not a variable", name))),
                 None => {
-                    return Err(self.error(*line, &format!("{} is an undefined variable", name)))
+                    return Err(self.error(*line, &format!("'{}' is an undefined variable", name)))
                 }
             };
             let val_tp = self.check_expr(value)?;
             if !is_compatible(&var_tp, &val_tp) {
                 return Err(self.error(
                     *line,
-                    &format!("Type mismatch: expected {:?}, got {:?}", var_tp, val_tp),
+                    &format!(
+                        "return type mismatch, expected: {}, got: {}",
+                        get_type_name(&var_tp),
+                        get_type_name(&val_tp)
+                    ),
                 ));
             }
         }
@@ -199,8 +203,10 @@ impl<'a> Sema<'a> {
             return Err(self.error(
                 line,
                 &format!(
-                    "Type mismatch in binary opration: {:?} {:?} {:?}",
-                    lt, op, rt
+                    "({} {} {}): type mismatch in binary opration",
+                    get_type_name(&lt),
+                    to_op(&op),
+                    get_type_name(&rt)
                 ),
             ));
         }
@@ -256,7 +262,11 @@ impl<'a> Sema<'a> {
                     if !is_compatible(&rt, &t) {
                         return Err(self.error(
                             *line,
-                            &format!("return type mismatch, expected: {:?}, got: {:?}", rt, t),
+                            &format!(
+                                "return type mismatch, expected: {}, got: {}",
+                                get_type_name(&rt),
+                                get_type_name(&t)
+                            ),
                         ));
                     }
                 }
@@ -381,4 +391,51 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
     let got_flt = flt_types.contains(got);
 
     (exp_int && got_int) || (exp_flt && got_flt) || (exp_flt && got_int)
+}
+
+fn get_type_name(n: &Types) -> &'static str {
+    match n {
+        Types::I8 => "i8",
+        Types::I16 => "i16",
+        Types::I32 => "i32",
+        Types::I64 => "i64",
+        Types::U8 => "u8",
+        Types::U16 => "u16",
+        Types::U32 => "u32",
+        Types::U64 => "u64",
+        Types::F32 => "f32",
+        Types::F64 => "f64",
+        Types::String => "string",
+        Types::Bool => "bool",
+        Types::Char => "char",
+        Types::File => "file",
+        Types::Matrix3x3 => "matrix3x3",
+        Types::Matrix4x4 => "matrix4x4",
+        Types::Vector2 => "vector2",
+        Types::Vector3 => "vector3",
+        _ => "type",
+    }
+}
+
+fn to_op(s: &BinaryOp) -> &'static str {
+    match s {
+        BinaryOp::Add => "+",
+        BinaryOp::BitAnd => "band",
+        BinaryOp::BitOr => "bor",
+        BinaryOp::BitXor => "xor",
+        BinaryOp::Div => "/",
+        BinaryOp::Eql => "==",
+        BinaryOp::GreaOr => ">=",
+        BinaryOp::GreaTh => ">",
+        BinaryOp::LessOr => "<=",
+        BinaryOp::LessTh => "<",
+        BinaryOp::LogicAnd => "&&",
+        BinaryOp::LogicOr => "||",
+        BinaryOp::Mul => "*",
+        BinaryOp::Neq => "=!",
+        BinaryOp::ShiftLeft => "<<",
+        BinaryOp::ShiftRight => ">>",
+        BinaryOp::Sub => "-",
+        _ => "and",
+    }
 }

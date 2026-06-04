@@ -48,9 +48,9 @@ pub fn report_and_check(
     if !errors.is_empty() {
         eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
         for e in &errors {
-            let underline = "*".repeat(e.src_line.len());
+            let underline = "^".repeat(e.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
                 Color::RED,
                 e.line,
                 Color::RESET,
@@ -58,18 +58,19 @@ pub fn report_and_check(
                 e.src_line,
                 Color::RESET,
                 Color::RED,
-                underline,
                 e.msg,
+                underline,
                 Color::RESET
             );
         }
     }
+
     if !warnings.is_empty() {
         eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
         for w in &warnings {
-            let underline = "*".repeat(w.src_line.len());
+            let underline = "^".repeat(w.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
                 Color::YELLOW,
                 w.line,
                 Color::RESET,
@@ -77,18 +78,19 @@ pub fn report_and_check(
                 w.src_line,
                 Color::RESET,
                 Color::YELLOW,
-                underline,
                 w.msg,
+                underline,
                 Color::RESET
             );
         }
     }
+
     if !info.is_empty() {
         eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
         for i in &info {
-            let underline = "*".repeat(i.src_line.len());
+            let underline = "^".repeat(i.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {}{}{} {}\n     {} {}{}",
+                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
                 Color::BLUE,
                 i.line,
                 Color::RESET,
@@ -96,8 +98,8 @@ pub fn report_and_check(
                 i.src_line,
                 Color::RESET,
                 Color::BLUE,
-                underline,
                 i.msg,
+                underline,
                 Color::RESET
             );
         }

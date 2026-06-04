@@ -4,82 +4,82 @@ use crate::error::{AsteriError, ErrorKind};
 #[derive(Debug)]
 pub enum TokenKind {
     // Literals
-    Int(i64),
-    Str(String),
     Char(char),
     Float(f64),
+    Int(i64),
+    Str(String),
 
     // Types
     Type(Types),
 
     // Operators
-    Asterisk,
-    Dot,
-    Comma,
-    Colon,
-    Semicolon,
-    Huh,
-    Percent,
-    At,
-    Caret,
     Ampersand,
-    Minus,
-    Plus,
-    Equal,
-    Slash,
-    Pipe,
-    Tilde,
+    Asterisk,
+    At,
     Bang,
-    LessThan,
-    GreaterThan,
-    OpeningRound,
-    ClosingRound,
-    OpeningCurly,
+    Caret,
     ClosingCurly,
-    OpeningSquare,
+    ClosingRound,
     ClosingSquare,
+    Colon,
+    Comma,
+    Dot,
+    Equal,
+    GreaterThan,
+    Huh,
+    LessThan,
+    Minus,
+    OpeningCurly,
+    OpeningRound,
+    OpeningSquare,
+    Percent,
+    Pipe,
+    Plus,
+    Semicolon,
+    Slash,
+    Tilde,
 
     // Compound Char
     Arrow,
-    NotEqual,
     EqualEqual,
-    LessOrEqual,
     GreaterOrEqual,
-    TwoPipes,
-    TwoAmpersands,
+    LessOrEqual,
+    NotEqual,
     ShiftLeft,
     ShiftRight,
+    TwoAmpersands,
+    TwoPipes,
 
     // Keywords
-    Let,
-    Immut,
-    If,
-    Else,
-    While,
-    Loop,
-    Match,
+    Append,
     Break,
-    Ret,
+    Close,
     Continue,
-    True,
+    Else,
+    Enum,
+    Error,
     False,
-    Null,
-    New,
     Form,
     Fun,
-    Pub,
-    Pri,
-    Enum,
-    Struct,
-    Use,
-    Print,
-    Write,
-    Read,
-    Append,
-    Error,
+    If,
+    Immut,
+    Let,
+    Loop,
+    Match,
+    New,
+    Null,
     Open,
-    Close,
+    Pri,
+    Print,
+    Pub,
+    Read,
+    Ret,
     Sort,
+    Struct,
+    True,
+    Use,
+    While,
+    Write,
 
     BitXor,
     BitOr,
@@ -315,13 +315,12 @@ impl Lexer {
                 ']' => TokenKind::ClosingSquare,
                 '"' => self.string_token(),
                 '\'' => self.char_token(),
-                _ => {
-                    self.error("Unexpected character");
+                c => {
+                    self.error(&format!("'{}' is an unexpected character", c));
                     TokenKind::EOF
                 }
             }
         };
-
         let end = self.current;
         let literal = self.chars[start..end].iter().collect();
         Some(Token::new(
@@ -414,7 +413,7 @@ impl Lexer {
             content.push(self.consume_escape());
         }
         if self.current_char() != Some('"') {
-            self.error("Unterminated string literal");
+            self.error("unterminated string literal");
         } else {
             self.swallow();
         }
@@ -451,8 +450,8 @@ impl Lexer {
                         self.swallow();
                         '\\'
                     }
-                    _ => {
-                        self.error("Invalid escape sequence");
+                    c => {
+                        self.error(&format!("'{:?}' is an invalid escape sequence", c));
                         '\0'
                     }
                 }
@@ -462,7 +461,7 @@ impl Lexer {
                 ch
             }
             None => {
-                self.error("Unexpected EOF inside literal");
+                self.error("unexpected EOF inside literal");
                 '\0'
             }
         };
@@ -472,7 +471,7 @@ impl Lexer {
     fn char_token(&mut self) -> TokenKind {
         let c = self.consume_escape();
         if self.current_char() != Some('\'') {
-            self.error("Unterminated character literal");
+            self.error("unterminated character literal");
         } else {
             self.swallow();
         }
@@ -489,12 +488,10 @@ impl Lexer {
         while line_start > 0 && self.chars[line_start - 1] != '\n' {
             line_start -= 1
         }
-
         let mut line_end = line_start;
         while line_end < self.chars.len() && self.chars[line_end] != '\n' {
             line_end += 1
         }
-
         let src_line = self.chars[line_start..line_end].iter().collect();
 
         self.errors.push(AsteriError::new(
