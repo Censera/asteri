@@ -50,7 +50,7 @@ pub fn report_and_check(
         for e in &errors {
             let underline = "^".repeat(e.src_line.len());
             eprintln!(
-                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
+                "{}{:>3}|{} {}{}{} {}-> {}\n     {}{}",
                 Color::RED,
                 e.line,
                 Color::RESET,

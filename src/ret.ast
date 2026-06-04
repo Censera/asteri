@@ -4,3 +4,7 @@ let a: string;
 let b: integer;
 
 if a + b {}
+if a + b {}
+if a + b {}
+if a + b {}
+if a + b {}
