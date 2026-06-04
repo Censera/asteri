@@ -48,9 +48,8 @@ pub fn report_and_check(
     if !errors.is_empty() {
         eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
         for e in &errors {
-            let underline = "^".repeat(e.src_line.len());
-            eprintln!(
-                "{}{:>3}|{} {}{}{} {}-> {}\n     {}{}",
+            let msg = format!(
+                "{}{:>4} | {}{}{}{} {}-> {}{}",
                 Color::RED,
                 e.line,
                 Color::RESET,
@@ -59,6 +58,17 @@ pub fn report_and_check(
                 Color::RESET,
                 Color::RED,
                 e.msg,
+                Color::RESET
+            );
+            let line_width = e.line.to_string().len().max(4);
+            let spaces_len = line_width + 3; // 3 -> space + | + space
+            let spaces = " ".repeat(spaces_len);
+            let underline = "^".repeat(e.src_line.chars().count());
+
+            eprintln!(
+                "{msg}\n{}{}{}{}",
+                spaces,
+                Color::RED,
                 underline,
                 Color::RESET
             );
@@ -66,11 +76,10 @@ pub fn report_and_check(
     }
 
     if !warnings.is_empty() {
-        eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
+        eprintln!("\t{} WARNINGS {}", Color::WARNINGS, Color::RESET);
         for w in &warnings {
-            let underline = "^".repeat(w.src_line.len());
-            eprintln!(
-                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
+            let msg = format!(
+                "{}{:>4} | {}{}{}{} {}-> {}{}",
                 Color::YELLOW,
                 w.line,
                 Color::RESET,
@@ -79,6 +88,17 @@ pub fn report_and_check(
                 Color::RESET,
                 Color::YELLOW,
                 w.msg,
+                Color::RESET
+            );
+            let line_width = w.line.to_string().len().max(4);
+            let spaces_len = line_width + 3; // 3 -> space + | + space
+            let spaces = " ".repeat(spaces_len);
+            let underline = "^".repeat(w.src_line.chars().count());
+
+            eprintln!(
+                "{msg}\n{}{}{}{}",
+                spaces,
+                Color::YELLOW,
                 underline,
                 Color::RESET
             );
@@ -88,9 +108,8 @@ pub fn report_and_check(
     if !info.is_empty() {
         eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
         for i in &info {
-            let underline = "^".repeat(i.src_line.len());
-            eprintln!(
-                "{}{:<3}|{} {}{}{} {}-> {}\n     {}{}",
+            let msg = format!(
+                "{}{:>4} | {}{}{}{} {}-> {}{}",
                 Color::BLUE,
                 i.line,
                 Color::RESET,
@@ -99,6 +118,17 @@ pub fn report_and_check(
                 Color::RESET,
                 Color::BLUE,
                 i.msg,
+                Color::RESET
+            );
+            let line_width = i.line.to_string().len().max(4);
+            let spaces_len = line_width + 3; // 3 -> space + | + space
+            let spaces = " ".repeat(spaces_len);
+            let underline = "^".repeat(i.src_line.chars().count());
+
+            eprintln!(
+                "{msg}\n{}{}{}{}",
+                spaces,
+                Color::BLUE,
                 underline,
                 Color::RESET
             );
