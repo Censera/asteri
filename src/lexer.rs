@@ -70,7 +70,6 @@ pub enum TokenKind {
     Loop,
     Match,
     New,
-    Null,
     Open,
     Pri,
     Print,
@@ -137,8 +136,8 @@ pub enum Types {
     Matrix4x4,
     Vector2,
     Vector3,
+    Unit,
 
-    None,
     Pointer(Box<Types>),
     OptionPointer(Box<Types>),
 }
@@ -212,7 +211,7 @@ impl Lexer {
                 "let" => TokenKind::Let,
 
                 "brk" | "break" => TokenKind::Break,
-                "cnt" | "cont" | "continue" => TokenKind::Continue,
+                "cnt" | "continue" => TokenKind::Continue,
                 "else" => TokenKind::Else,
                 "if" => TokenKind::If,
                 "loop" => TokenKind::Loop,
@@ -246,13 +245,12 @@ impl Lexer {
                 "error" => TokenKind::Error,
                 "false" => TokenKind::False,
                 "new" => TokenKind::New,
-                "NULL" => TokenKind::Null,
                 "true" => TokenKind::True,
 
                 "bool" | "boolean" => TokenKind::Type(Types::Bool),
                 "char" => TokenKind::Type(Types::Char),
-                "file" => TokenKind::Type(Types::File),
-                "string" => TokenKind::Type(Types::String),
+                "File" => TokenKind::Type(Types::File),
+                "String" => TokenKind::Type(Types::String),
                 "str" => TokenKind::Type(Types::Str),
                 "cstr" => TokenKind::Type(Types::Cstr),
                 "istr" => TokenKind::Type(Types::Istr),
@@ -268,10 +266,10 @@ impl Lexer {
 
                 "f32" | "float" => TokenKind::Type(Types::F32),
                 "f64" | "double" => TokenKind::Type(Types::F64),
-                "mat3x3" | "matrix3x3" => TokenKind::Type(Types::Matrix3x3),
-                "mat4x4" | "matrix4x4" => TokenKind::Type(Types::Matrix4x4),
-                "vec2" | "vector2" => TokenKind::Type(Types::Vector2),
-                "vec3" | "vector3" => TokenKind::Type(Types::Vector3),
+                "Mat3" | "Matrix3x3" => TokenKind::Type(Types::Matrix3x3),
+                "Mat4" | "Matrix4x4" => TokenKind::Type(Types::Matrix4x4),
+                "Vec2" | "Vector2" => TokenKind::Type(Types::Vector2),
+                "Vec3" | "Vector3" => TokenKind::Type(Types::Vector3),
 
                 _ => TokenKind::Id(id),
             }
@@ -335,7 +333,7 @@ impl Lexer {
                     }
                     _ => TokenKind::GreaterThan,
                 },
-                '(' => TokenKind::OpeningRound,
+                '(' => self.is_compound(')', TokenKind::Types(Unit), TokenKind::OpeningRound),
                 ')' => TokenKind::ClosingRound,
                 '{' => TokenKind::OpeningCurly,
                 '}' => TokenKind::ClosingCurly,

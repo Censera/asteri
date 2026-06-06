@@ -642,6 +642,10 @@ impl<'a> Parser<'a> {
                 self.expect(TokenKind::ClosingRound)?;
                 Ok(expr)
             }
+            TokenKind::Unit => {
+                self.advance();
+                Ok(Expr::Unit)
+            }
             TokenKind::Int(n) => {
                 let e = Expr::Int(*n);
                 self.advance();
