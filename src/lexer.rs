@@ -333,7 +333,14 @@ impl Lexer {
                     }
                     _ => TokenKind::GreaterThan,
                 },
-                '(' => self.is_compound(')', TokenKind::Type(Types::Unit), TokenKind::OpeningRound),
+                '(' => {
+                    if matches!(self.current_char(), Some(')')) {
+                        self.swallow();
+                        TokenKind::Types(Types::Unit)
+                    } else {
+                        TokenKind::OpeningRound
+                    }
+                }
                 ')' => TokenKind::ClosingRound,
                 '{' => TokenKind::OpeningCurly,
                 '}' => TokenKind::ClosingCurly,
