@@ -110,6 +110,7 @@ impl<'a> Parser<'a> {
 
     fn parse_let(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
@@ -120,7 +121,6 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
-        let line = self.line();
         Ok(Stmt::Let {
             name,
             tp: Some(tp),
@@ -131,6 +131,7 @@ impl<'a> Parser<'a> {
 
     fn parse_immut(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let name = self.expect_id()?;
         self.expect(TokenKind::Colon)?;
         let tp = self.expect_type()?;
@@ -141,7 +142,6 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semicolon)?;
-        let line = self.line();
         Ok(Stmt::Immut {
             name,
             tp: Some(tp),
@@ -166,6 +166,7 @@ impl<'a> Parser<'a> {
 
     fn parse_fun(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let rt_tp = if matches!(self.kind(), TokenKind::Colon) {
             self.advance();
             Some(self.expect_type()?)
@@ -177,7 +178,6 @@ impl<'a> Parser<'a> {
         let params = self.parse_params()?;
         self.expect(TokenKind::ClosingRound)?;
         let body = self.parse_block()?;
-        let line = self.line();
         Ok(Stmt::Fun {
             rt_tp,
             name,
@@ -250,6 +250,7 @@ impl<'a> Parser<'a> {
 
     fn parse_if(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let condition = self.parse_expr()?;
         let body = self.parse_block()?;
         let else_branch = if matches!(self.kind(), TokenKind::Else) {
@@ -262,7 +263,6 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let line = self.line();
         Ok(Stmt::If {
             condition,
             body,
@@ -273,9 +273,9 @@ impl<'a> Parser<'a> {
 
     fn parse_while(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let condition = self.parse_expr()?;
         let body = self.parse_block()?;
-        let line = self.line();
         Ok(Stmt::While {
             condition,
             body,
@@ -380,14 +380,15 @@ impl<'a> Parser<'a> {
 
     fn parse_assign(&mut self, name: String) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let value = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-        let line = self.line();
         Ok(Stmt::Assign { name, value, line })
     }
 
     fn parse_call(&mut self, name: String) -> Result<Stmt, AsteriError> {
         self.advance();
+        let line = self.line();
         let mut args = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
             args.push(self.parse_expr()?);
@@ -397,7 +398,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::ClosingRound)?;
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Call { name, args })
+        Ok(Stmt::Call { name, args, line })
     }
 
     // :>   parse_expr          1:
@@ -419,8 +420,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
+            let line = self.line();
             let right = self.parse_logical_and()?; // 1:
-            let line = self.tokens[self.current - 1].span.line;
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -440,8 +441,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
-            let right = self.parse_additive()?; // 2:
             let line = self.line();
+            let right = self.parse_additive()?; // 2:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -462,8 +463,8 @@ impl<'a> Parser<'a> {
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_comparison()?; // 3:
             let line = self.line();
+            let right = self.parse_comparison()?; // 3:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -488,8 +489,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
-            let right = self.parse_bitwise()?; // 4:
             let line = self.line();
+            let right = self.parse_bitwise()?; // 4:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -511,8 +512,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
-            let right = self.parse_shift()?; // 5:
             let line = self.line();
+            let right = self.parse_shift()?; // 5:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -533,8 +534,8 @@ impl<'a> Parser<'a> {
                 _ => break,
             };
             self.advance();
-            let right = self.parse_term()?; // 6:
             let line = self.line();
+            let right = self.parse_term()?; // 6:
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -555,8 +556,9 @@ impl<'a> Parser<'a> {
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_unary()?; // 7:
             let line = self.line();
+            let right = self.parse_unary()?; // 7:
+
             left = Expr::Binary {
                 left: Box::new(left),
                 op,
@@ -569,6 +571,7 @@ impl<'a> Parser<'a> {
 
     // :7
     fn parse_unary(&mut self) -> Result<Expr, AsteriError> {
+        let line = self.line();
         match self.kind() {
             TokenKind::Ampersand => {
                 self.advance();
@@ -579,6 +582,7 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Unary {
                     op: UnaryOp::BitNot,
                     expr: Box::new(self.parse_unary()?),
+                    line,
                 })
             }
             TokenKind::Bang => {
@@ -586,6 +590,7 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Unary {
                     op: UnaryOp::Not,
                     expr: Box::new(self.parse_unary()?),
+                    line,
                 })
             }
             TokenKind::Minus => {
@@ -593,6 +598,7 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Unary {
                     op: UnaryOp::Minus,
                     expr: Box::new(self.parse_unary()?),
+                    line,
                 })
             }
             _ => self.parse_postfix(), // 8:
@@ -604,13 +610,17 @@ impl<'a> Parser<'a> {
         let mut expr = self.parse_primary()?; // 9:
         while matches!(self.kind(), TokenKind::Caret) {
             self.advance();
-            expr = Expr::Dereference(Box::new(expr))
+            expr = Expr::Dereference {
+                expr: Box::new(expr),
+                line: self.line(),
+            }
         }
         Ok(expr)
     }
 
     // :9
     fn parse_primary(&mut self) -> Result<Expr, AsteriError> {
+        let line = self.line();
         match self.kind() {
             TokenKind::OpeningRound => {
                 self.advance();
@@ -654,9 +664,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     self.expect(TokenKind::ClosingRound)?;
-                    Ok(Expr::Call { name, args })
+                    Ok(Expr::Call { name, args, line })
                 } else {
-                    Ok(Expr::Id(name))
+                    Ok(Expr::Id { name, line })
                 }
             }
             _ => Err(self.error("expected an expression")), // :Error
@@ -664,6 +674,9 @@ impl<'a> Parser<'a> {
     }
 
     fn line(&self) -> usize {
+        if self.current == 0 {
+            return self.tokens.first().map(|t| t.span.line).unwrap_or(1);
+        }
         self.tokens[self.current - 1].span.line
     }
 
@@ -691,7 +704,7 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(())
         } else {
-            Err(self.error(&format!("expected '{}'", to_symbol(&expected))))
+            Err(self.error(&format!("expected {}", to_symbol(&expected))))
         }
     }
 
@@ -738,18 +751,18 @@ impl<'a> Parser<'a> {
 
 fn to_symbol(k: &TokenKind) -> &'static str {
     match k {
-        TokenKind::Colon => ":",
-        TokenKind::Semicolon => ";",
-        TokenKind::Comma => ",",
-        TokenKind::Equal => "=",
-        TokenKind::OpeningRound => "(",
-        TokenKind::ClosingRound => ")",
-        TokenKind::OpeningCurly => "{",
-        TokenKind::ClosingCurly => "}",
-        TokenKind::OpeningSquare => "[",
-        TokenKind::ClosingSquare => "]",
-        TokenKind::Caret => "^",
-        TokenKind::Huh => "?",
+        TokenKind::Colon => "a colon ':'",
+        TokenKind::Semicolon => "a semicolon ';'",
+        TokenKind::Comma => "a comma ','",
+        TokenKind::Equal => "a equal sign =",
+        TokenKind::OpeningRound => "an opening round bracket '('",
+        TokenKind::ClosingRound => "a closing round bracket ')'",
+        TokenKind::OpeningCurly => "an opening curly bracket '{'",
+        TokenKind::ClosingCurly => "a closing curly bracket '}'",
+        TokenKind::OpeningSquare => "an opening box bracket '['",
+        TokenKind::ClosingSquare => "a closing box bracket ']'",
+        TokenKind::Caret => "a caret '^'",
+        TokenKind::Huh => "a bang or question mark '?'",
         _ => "token",
     }
 }

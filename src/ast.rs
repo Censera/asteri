@@ -62,7 +62,10 @@ pub enum Expr {
     Bool(bool),
     Float(f64),
     Str(String),
-    Id(String),
+    Id {
+        name: String,
+        line: usize,
+    },
 
     Binary {
         left: Box<Expr>,
@@ -73,14 +76,19 @@ pub enum Expr {
     Call {
         name: String,
         args: Vec<Expr>,
+        line: usize,
     },
     Unary {
         op: UnaryOp,
         expr: Box<Expr>,
+        line: usize,
     },
 
-    Reference(Box<Expr>),   // &x
-    Dereference(Box<Expr>), // p^
+    Reference(Box<Expr>), // &x
+    Dereference {
+        expr: Box<Expr>,
+        line: usize,
+    }, // p^
 }
 
 #[derive(Debug)]
@@ -141,6 +149,7 @@ pub enum Stmt {
     Call {
         name: String,
         args: Vec<Expr>,
+        line: usize,
     },
 
     Struct {

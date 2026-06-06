@@ -46,93 +46,42 @@ pub fn report_and_check(
     info: Vec<AsteriError>,
 ) -> bool {
     if !errors.is_empty() {
-        eprintln!("\t{} ERROR {}", Color::ERROR, Color::RESET);
-        for e in &errors {
-            let msg = format!(
-                "{}{:>4} | {}{}{}{} {}-> {}{}",
-                Color::RED,
-                e.line,
-                Color::RESET,
-                Color::BOLD,
-                e.src_line,
-                Color::RESET,
-                Color::RED,
-                e.msg,
-                Color::RESET
-            );
-            let line_width = e.line.to_string().len().max(4);
-            let spaces_len = line_width + 3; // 3 -> space + | + space
-            let spaces = " ".repeat(spaces_len);
-            let underline = "^".repeat(e.src_line.chars().count());
-
-            eprintln!(
-                "{msg}\n{}{}{}{}",
-                spaces,
-                Color::RED,
-                underline,
-                Color::RESET
-            );
-        }
+        report_section("ERROR", Color::ERROR, Color::RED, &errors);
     }
 
     if !warnings.is_empty() {
-        eprintln!("\t{} WARNING {}", Color::WARNING, Color::RESET);
-        for w in &warnings {
-            let msg = format!(
-                "{}{:>4} | {}{}{}{} {}-> {}{}",
-                Color::YELLOW,
-                w.line,
-                Color::RESET,
-                Color::BOLD,
-                w.src_line,
-                Color::RESET,
-                Color::YELLOW,
-                w.msg,
-                Color::RESET
-            );
-            let line_width = w.line.to_string().len().max(4);
-            let spaces_len = line_width + 3; // 3 -> space + | + space
-            let spaces = " ".repeat(spaces_len);
-            let underline = "^".repeat(w.src_line.chars().count());
-
-            eprintln!(
-                "{msg}\n{}{}{}{}",
-                spaces,
-                Color::YELLOW,
-                underline,
-                Color::RESET
-            );
-        }
+        report_section("WARNING", Color::WARNING, Color::YELLOW, &warnings);
     }
 
     if !info.is_empty() {
-        eprintln!("\t{} INFO {}", Color::INFO, Color::RESET);
-        for i in &info {
-            let msg = format!(
-                "{}{:>4} | {}{}{}{} {}-> {}{}",
-                Color::BLUE,
-                i.line,
-                Color::RESET,
-                Color::BOLD,
-                i.src_line,
-                Color::RESET,
-                Color::BLUE,
-                i.msg,
-                Color::RESET
-            );
-            let line_width = i.line.to_string().len().max(4);
-            let spaces_len = line_width + 3; // 3 -> space + | + space
-            let spaces = " ".repeat(spaces_len);
-            let underline = "^".repeat(i.src_line.chars().count());
-
-            eprintln!(
-                "{msg}\n{}{}{}{}",
-                spaces,
-                Color::BLUE,
-                underline,
-                Color::RESET
-            );
-        }
+        report_section("INFO", Color::INFO, Color::BLUE, &info);
     }
     !errors.is_empty()
+}
+
+fn report_section(header: &str, c1: &str, c2: &str, items: &[AsteriError]) {
+    if items.is_empty() {
+        return;
+    }
+    eprintln!("\t{} {} {}", c1, header, Color::RESET);
+    for i in items {
+        let msg = format!(
+            "{}{:>4} | {}{}{}{} {}-> {}{}",
+            c2,
+            i.line,
+            Color::RESET,
+            Color::BOLD,
+            i.src_line,
+            Color::RESET,
+            c2,
+            i.msg,
+            Color::RESET
+        );
+        let line_width = i.line.to_string().len().max(4);
+        let spaces_len = line_width + 3; // 3 -> space + | + space
+        let spaces = " ".repeat(spaces_len);
+        let underline = "^".repeat(i.src_line.chars().count());
+
+        eprintln!("{msg}\n{}{}{}{}", spaces, c2, underline, Color::RESET);
+    }
 }

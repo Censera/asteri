@@ -1,4 +1,4 @@
-use crate::ast::{BinaryOp, Expr, Stmt, Types};
+use crate::ast::{BinaryOp, Expr, Stmt, Types, UnaryOp};
 use crate::error::{AsteriError, ErrorKind};
 use std::collections::HashMap;
 
@@ -31,7 +31,7 @@ impl<'a> Sema<'a> {
         Self {
             input,
             scopes: vec![HashMap::new()],
-            returns: Some(Types::I8),
+            returns: None,
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -70,7 +70,45 @@ impl<'a> Sema<'a> {
             Stmt::Fun { .. } => self.check_fun(stmt),
             Stmt::Ret { .. } => self.check_ret(stmt),
             Stmt::If { .. } => self.check_if(stmt),
+            Stmt::Loop { .. } => self.check_loop(stmt),
             Stmt::While { .. } => self.check_while(stmt),
+            Stmt::Call { name, args, line } => {
+                let (params, return_type) = match self.lookup(name) {
+                    Some(Symbol::Fun {
+                        params,
+                        return_type,
+                    }) => (params.clone(), return_type.clone()),
+                    Some(_) => {
+                        return Err(self.error(*line, &format!("'{}' is not a function", name,)))
+                    }
+                    None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
+                };
+                if args.len() != params.len() {
+                    return Err(self.error(
+                        *line,
+                        &format!(
+                            "'{}' expects {} arguments, got {}",
+                            name,
+                            params.len(),
+                            args.len()
+                        ),
+                    ));
+                }
+                for (arg, param_tp) in args.iter().zip(params.iter()) {
+                    let arg_tp = self.check_expr(arg)?;
+                    if !is_compatible(param_tp, &arg_tp) {
+                        return Err(self.error(
+                            *line,
+                            &format!(
+                                "arguments type, mismatch: expected {}, got {}",
+                                get_type_name(param_tp),
+                                get_type_name(&arg_tp)
+                            ),
+                        ));
+                    }
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -87,11 +125,24 @@ impl<'a> Sema<'a> {
                 right,
                 line,
             } => self.check_binary(left, op, right, *line),
-            Expr::Id(name) => match self.lookup(name) {
+            Expr::Unary { op, expr, line } => self.check_unary(op, expr, *line),
+            Expr::Reference(expr) => {
+                let inner = self.check_expr(expr)?;
+                Ok(Types::Pointer(Box::new(inner)))
+            }
+            Expr::Dereference { expr, line } => {
+                let inner = self.check_expr(expr)?;
+                match &inner {
+                    Types::Pointer(point) | Types::OptionPointer(point) => Ok(*point.clone()),
+                    _ => Err(self.error(*line, "dereference requires a pointer type")),
+                }
+            }
+            Expr::Id { name, line } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
-                Some(_) => Err(self.error(0, &format!("'{}' is not a variable", name))),
-                None => Err(self.error(0, &format!("'{}' is an undefined variable", name))),
+                Some(_) => Err(self.error(*line, &format!("'{}' is not a variable", name))),
+                None => Err(self.error(*line, &format!("'{}' is an undefined variable", name))),
             },
+
             _ => Err(self.error(0, "unimplemented expression")),
         }
     }
@@ -110,10 +161,21 @@ impl<'a> Sema<'a> {
                     &format!("'{}' is already declared in this scope", name),
                 ));
             }
-            if let Some(expr) = value {
-                self.check_expr(expr)?;
-            }
             if let Some(t) = tp {
+                if let Some(expr) = value {
+                    let init_tp = self.check_expr(expr)?;
+                    if !is_compatible(t, &init_tp) {
+                        return Err(self.error(
+                            *line,
+                            &format!(
+                                "type mismatch: declared '{}' but initialized with '{}'",
+                                get_type_name(t),
+                                get_type_name(&init_tp)
+                            ),
+                        ));
+                    }
+                }
+
                 self.define(
                     name.clone(),
                     Symbol::Variable {
@@ -145,10 +207,21 @@ impl<'a> Sema<'a> {
                     &format!("'{}' is already declared in this scope", name),
                 ));
             }
-            if let Some(expr) = value {
-                self.check_expr(expr)?;
-            }
             if let Some(t) = tp {
+                if let Some(expr) = value {
+                    let init_tp = self.check_expr(expr)?;
+                    if !is_compatible(t, &init_tp) {
+                        return Err(self.error(
+                            *line,
+                            &format!(
+                                "type mismatch: declared '{}' but initialized with '{}'",
+                                get_type_name(t),
+                                get_type_name(&init_tp)
+                            ),
+                        ));
+                    }
+                }
+
                 self.define(
                     name.clone(),
                     Symbol::Variable {
@@ -157,7 +230,10 @@ impl<'a> Sema<'a> {
                     },
                 );
             } else {
-                return Err(self.error(*line, "immut declaration missing type"));
+                return Err(self.error(
+                    *line,
+                    &format!("immut declaration missing type: 'immut {}: ? = ...,", name),
+                ));
             }
         }
         Ok(())
@@ -210,7 +286,40 @@ impl<'a> Sema<'a> {
                 ),
             ));
         }
-        Ok(lt)
+
+        match op {
+            BinaryOp::Eql
+            | BinaryOp::Neq
+            | BinaryOp::LessTh
+            | BinaryOp::GreaTh
+            | BinaryOp::LessOr
+            | BinaryOp::GreaOr => Ok(Types::Bool),
+
+            _ => Ok(lt),
+        }
+    }
+
+    fn check_unary(
+        &mut self,
+        op: &UnaryOp,
+        expr: &Expr,
+        line: usize,
+    ) -> Result<Types, AsteriError> {
+        let inner = self.check_expr(expr)?;
+        match op {
+            UnaryOp::Minus | UnaryOp::BitNot => {
+                if !is_numeric(&inner) {
+                    return Err(self.error(line, "unary operator requires numirc operand"));
+                }
+                Ok(inner)
+            }
+            UnaryOp::Not => {
+                if inner != Types::Bool {
+                    return Err(self.error(line, "logical not requires boolean operand"));
+                }
+                Ok(Types::Bool)
+            }
+        }
     }
 
     fn check_fun(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
@@ -420,9 +529,9 @@ fn get_type_name(n: &Types) -> &'static str {
 fn to_op(s: &BinaryOp) -> &'static str {
     match s {
         BinaryOp::Add => "+",
-        BinaryOp::BitAnd => "band",
-        BinaryOp::BitOr => "bor",
-        BinaryOp::BitXor => "xor",
+        BinaryOp::BitAnd => "BitAnd",
+        BinaryOp::BitOr => "BitOr",
+        BinaryOp::BitXor => "Xor",
         BinaryOp::Div => "/",
         BinaryOp::Eql => "==",
         BinaryOp::GreaOr => ">=",
@@ -438,4 +547,19 @@ fn to_op(s: &BinaryOp) -> &'static str {
         BinaryOp::Sub => "-",
         _ => "and",
     }
+}
+
+fn is_numeric(tp: &Types) -> bool {
+    matches!(
+        tp,
+        Types::I8
+            | Types::I16
+            | Types::I32
+            | Types::I64
+            | Types::U8
+            | Types::U16
+            | Types::U32
+            | Types::U64
+            | Types::F32
+    )
 }
