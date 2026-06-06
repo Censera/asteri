@@ -642,7 +642,7 @@ impl<'a> Parser<'a> {
                 self.expect(TokenKind::ClosingRound)?;
                 Ok(expr)
             }
-            TokenKind::Unit => {
+            TokenKind::Type(Types::Unit) => {
                 self.advance();
                 Ok(Expr::Unit)
             }

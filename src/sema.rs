@@ -11,7 +11,7 @@ pub enum Symbol {
 
     Fun {
         params: Vec<Types>,
-        return_type: Option<Types>,
+        return_type: Types,
     },
 
     Struct(String),
@@ -20,7 +20,7 @@ pub enum Symbol {
 pub struct Sema<'a> {
     input: &'a str,
     scopes: Vec<HashMap<String, Symbol>>,
-    returns: Option<Types>,
+    returns: Types,
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
     info: Vec<AsteriError>,
@@ -31,7 +31,7 @@ impl<'a> Sema<'a> {
         Self {
             input,
             scopes: vec![HashMap::new()],
-            returns: None,
+            returns: Types::Unit,
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -179,7 +179,7 @@ impl<'a> Sema<'a> {
                         ));
                     }
                 }
-                Ok(return_type.unwrap_or(Types::None))
+                Ok(return_type)
             }
 
             _ => Err(self.error(0, "unimplemented expression")),
@@ -403,11 +403,11 @@ impl<'a> Sema<'a> {
             name.clone(),
             Symbol::Fun {
                 params: params.iter().map(|(_, t)| t.clone()).collect(),
-                return_type: rt_tp.clone(),
+                return_type: rt_tp.clone().unwrap_or(Types::Unit),
             },
         );
         let previous = self.returns.clone();
-        self.returns = rt_tp.clone();
+        self.returns = rt_tp.clone().unwrap_or(Types::Unit);
         self.push();
         for (p_name, p_type) in params {
             self.define(
@@ -430,24 +430,28 @@ impl<'a> Sema<'a> {
 
     fn check_ret(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         if let Stmt::Ret { expr, line } = stmt {
-            let exp_rt = self.returns.clone();
-            match (expr, exp_rt) {
-                (Some(e), Some(rt)) => {
+            match expr {
+                Some(e) => {
                     let t = self.check_expr(e)?;
-                    if !is_compatible(&rt, &t) {
+                    if self.returns == Types::Unit {
+                        return Err(self.error(*line, "unexpected return value in void function"));
+                    }
+                    if !is_compatible(&self.returns, &t) {
                         return Err(self.error(
                             *line,
                             &format!(
                                 "return type mismatch, expected: {}, got: {}",
-                                get_type_name(&rt),
+                                get_type_name(&self.returns),
                                 get_type_name(&t)
                             ),
                         ));
                     }
                 }
-                (None, Some(_)) => return Err(self.error(*line, "Missing a return value")),
-                (Some(_), None) => return Err(self.error(*line, "Unexpected return value")),
-                (None, None) => {}
+                None => {
+                    if self.returns != Types::Unit {
+                        return Err(self.error(*line, "missing returns value"));
+                    }
+                }
             }
         }
         Ok(())

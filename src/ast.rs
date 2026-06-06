@@ -62,6 +62,8 @@ pub enum Expr {
     Bool(bool),
     Float(f64),
     Str(String),
+    Unit, // ()
+
     Id {
         name: String,
         line: usize,
