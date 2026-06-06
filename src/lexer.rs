@@ -336,7 +336,7 @@ impl Lexer {
                 '(' => {
                     if matches!(self.current_char(), Some(')')) {
                         self.swallow();
-                        TokenKind::Types(Types::Unit)
+                        TokenKind::Type(Types::Unit)
                     } else {
                         TokenKind::OpeningRound
                     }
