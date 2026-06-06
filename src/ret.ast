@@ -1,11 +1,7 @@
-fn
-:
-i32
-repeat
-(
-    n
-    i32
-)
-{}
-immut expected: str;
-immut i: i32 = expected;
+fn: i32 one() { return 1; }
+
+let b = 1;
+
+b = one();
+
+

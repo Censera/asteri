@@ -32,7 +32,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if error::report_and_check(errors, warnings, info) {
         return Ok(());
     }
-
     //println!("{:#?}", tokens);
 
     // Parser
@@ -42,6 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if error::report_and_check(errors, warnings, info) {
         return Ok(());
     }
+    println!("{:#?}", stmts);
 
     // Sematic Analysis
     let mut sema = sema::Sema::new(&input);

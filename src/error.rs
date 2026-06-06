@@ -48,11 +48,9 @@ pub fn report_and_check(
     if !errors.is_empty() {
         report_section("ERROR", Color::ERROR, Color::RED, &errors);
     }
-
     if !warnings.is_empty() {
         report_section("WARNING", Color::WARNING, Color::YELLOW, &warnings);
     }
-
     if !info.is_empty() {
         report_section("INFO", Color::INFO, Color::BLUE, &info);
     }

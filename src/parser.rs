@@ -112,18 +112,25 @@ impl<'a> Parser<'a> {
         self.advance();
         let line = self.line();
         let name = self.expect_id()?;
-        self.expect(TokenKind::Colon)?;
-        let tp = self.expect_type()?;
+
+        let tp = if matches!(self.kind(), TokenKind::Colon) {
+            self.advance();
+            Some(self.expect_type()?)
+        } else {
+            None
+        };
+
         let value = if matches!(self.kind(), TokenKind::Equal) {
             self.advance();
             Some(self.parse_expr()?)
         } else {
             None
         };
+
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Let {
             name,
-            tp: Some(tp),
+            tp,
             value,
             line,
         })
@@ -133,18 +140,25 @@ impl<'a> Parser<'a> {
         self.advance();
         let line = self.line();
         let name = self.expect_id()?;
-        self.expect(TokenKind::Colon)?;
-        let tp = self.expect_type()?;
+
+        let tp = if matches!(self.kind(), TokenKind::Colon) {
+            self.advance();
+            Some(self.expect_type()?)
+        } else {
+            None
+        };
+
         let value = if matches!(self.kind(), TokenKind::Equal) {
             self.advance();
             Some(self.parse_expr()?)
         } else {
             None
         };
+
         self.expect(TokenKind::Semicolon)?;
         Ok(Stmt::Immut {
             name,
-            tp: Some(tp),
+            tp,
             value,
             line,
         })

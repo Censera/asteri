@@ -138,6 +138,7 @@ pub enum Types {
     Vector2,
     Vector3,
 
+    None,
     Pointer(Box<Types>),
     OptionPointer(Box<Types>),
 }

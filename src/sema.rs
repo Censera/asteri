@@ -137,11 +137,50 @@ impl<'a> Sema<'a> {
                     _ => Err(self.error(*line, "dereference requires a pointer type")),
                 }
             }
+
             Expr::Id { name, line } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
                 Some(_) => Err(self.error(*line, &format!("'{}' is not a variable", name))),
                 None => Err(self.error(*line, &format!("'{}' is an undefined variable", name))),
             },
+
+            Expr::Call { name, args, line } => {
+                let (params, return_type) = match self.lookup(name) {
+                    Some(Symbol::Fun {
+                        params,
+                        return_type,
+                    }) => (params.clone(), return_type.clone()),
+                    Some(_) => {
+                        return Err(self.error(*line, &format!("'{}' is not a function", name,)))
+                    }
+                    None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
+                };
+                if args.len() != params.len() {
+                    return Err(self.error(
+                        *line,
+                        &format!(
+                            "'{}' expects {} arguments, got {}",
+                            name,
+                            params.len(),
+                            args.len()
+                        ),
+                    ));
+                }
+                for (arg, param_tp) in args.iter().zip(params.iter()) {
+                    let arg_tp = self.check_expr(arg)?;
+                    if !is_compatible(param_tp, &arg_tp) {
+                        return Err(self.error(
+                            *line,
+                            &format!(
+                                "arguments type, mismatch: expected {}, got {}",
+                                get_type_name(param_tp),
+                                get_type_name(&arg_tp)
+                            ),
+                        ));
+                    }
+                }
+                Ok(return_type.unwrap_or(Types::None))
+            }
 
             _ => Err(self.error(0, "unimplemented expression")),
         }
@@ -161,8 +200,11 @@ impl<'a> Sema<'a> {
                     &format!("'{}' is already declared in this scope", name),
                 ));
             }
-            if let Some(t) = tp {
-                if let Some(expr) = value {
+
+            let res_tp = match (tp, value) {
+                (Some(t), None) => t.clone(),
+
+                (Some(t), Some(expr)) => {
                     let init_tp = self.check_expr(expr)?;
                     if !is_compatible(t, &init_tp) {
                         return Err(self.error(
@@ -174,21 +216,32 @@ impl<'a> Sema<'a> {
                             ),
                         ));
                     }
+                    t.clone()
                 }
 
-                self.define(
-                    name.clone(),
-                    Symbol::Variable {
-                        tp: t.clone(),
-                        immut: false,
-                    },
-                );
-            } else {
-                return Err(self.error(
-                    *line,
-                    &format!("let declaration missing type: 'let {}: ? = ...,", name),
-                ));
-            }
+                (None, Some(expr)) => {
+                    let init_tp = self.check_expr(expr)?;
+                    init_tp
+                }
+
+                (None, None) => {
+                    return Err(self.error(
+                        *line,
+                        &format!(
+                            "cannot infer type of '{}', need type annotation or initializer",
+                            name
+                        ),
+                    ))
+                }
+            };
+
+            self.define(
+                name.clone(),
+                Symbol::Variable {
+                    tp: res_tp.clone(),
+                    immut: false,
+                },
+            );
         }
         Ok(())
     }
@@ -207,8 +260,10 @@ impl<'a> Sema<'a> {
                     &format!("'{}' is already declared in this scope", name),
                 ));
             }
-            if let Some(t) = tp {
-                if let Some(expr) = value {
+            let res_tp = match (tp, value) {
+                (Some(t), None) => t.clone(),
+
+                (Some(t), Some(expr)) => {
                     let init_tp = self.check_expr(expr)?;
                     if !is_compatible(t, &init_tp) {
                         return Err(self.error(
@@ -220,21 +275,32 @@ impl<'a> Sema<'a> {
                             ),
                         ));
                     }
+                    t.clone()
                 }
 
-                self.define(
-                    name.clone(),
-                    Symbol::Variable {
-                        tp: t.clone(),
-                        immut: true,
-                    },
-                );
-            } else {
-                return Err(self.error(
-                    *line,
-                    &format!("immut declaration missing type: 'immut {}: ? = ...,", name),
-                ));
-            }
+                (None, Some(expr)) => {
+                    let init_tp = self.check_expr(expr)?;
+                    init_tp
+                }
+
+                (None, None) => {
+                    return Err(self.error(
+                        *line,
+                        &format!(
+                            "cannot infer type of '{}', need type annotation or initializer",
+                            name
+                        ),
+                    ))
+                }
+            };
+
+            self.define(
+                name.clone(),
+                Symbol::Variable {
+                    tp: res_tp.clone(),
+                    immut: true,
+                },
+            );
         }
         Ok(())
     }
@@ -522,6 +588,11 @@ fn get_type_name(n: &Types) -> &'static str {
         Types::Matrix4x4 => "matrix4x4",
         Types::Vector2 => "vector2",
         Types::Vector3 => "vector3",
+        Types::Pointer(_) => "pointer",
+        Types::OptionPointer(_) => "optional pointer",
+        Types::Str => "str",
+        Types::Cstr => "cstr",
+        Types::Istr => "istr",
         _ => "type",
     }
 }
@@ -531,7 +602,7 @@ fn to_op(s: &BinaryOp) -> &'static str {
         BinaryOp::Add => "+",
         BinaryOp::BitAnd => "BitAnd",
         BinaryOp::BitOr => "BitOr",
-        BinaryOp::BitXor => "Xor",
+        BinaryOp::BitXor => "BitXor",
         BinaryOp::Div => "/",
         BinaryOp::Eql => "==",
         BinaryOp::GreaOr => ">=",
@@ -541,7 +612,7 @@ fn to_op(s: &BinaryOp) -> &'static str {
         BinaryOp::LogicAnd => "&&",
         BinaryOp::LogicOr => "||",
         BinaryOp::Mul => "*",
-        BinaryOp::Neq => "=!",
+        BinaryOp::Neq => "!=",
         BinaryOp::ShiftLeft => "<<",
         BinaryOp::ShiftRight => ">>",
         BinaryOp::Sub => "-",
@@ -561,5 +632,6 @@ fn is_numeric(tp: &Types) -> bool {
             | Types::U32
             | Types::U64
             | Types::F32
+            | Types::F64
     )
 }
