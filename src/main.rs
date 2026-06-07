@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
-    let is_debug = false;
+    let is_debug = true;
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
