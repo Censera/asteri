@@ -64,6 +64,10 @@ impl<'a> Sema<'a> {
                 self.check_expr(expr)?;
                 Ok(())
             }
+            Stmt::Error(expr) => {
+                self.check_expr(expr)?;
+                Ok(())
+            }
             Stmt::Let { .. } => self.check_let(stmt),
             Stmt::Immut { .. } => self.check_immut(stmt),
             Stmt::Assign { .. } => self.check_assign(stmt),
@@ -72,42 +76,19 @@ impl<'a> Sema<'a> {
             Stmt::If { .. } => self.check_if(stmt),
             Stmt::Loop { .. } => self.check_loop(stmt),
             Stmt::While { .. } => self.check_while(stmt),
-            Stmt::DerefAssign { .. } => self.check_deref_assign(stmt),
+            Stmt::CBlock(_) => Ok(()),
+            Stmt::Block(stmts) => {
+                self.push();
+                for s in stmts {
+                    if let Err(e) = self.check_stmt(s) {
+                        self.errors.push(e)
+                    }
+                }
+                self.pop();
+                Ok(())
+            }
             Stmt::Call { name, args, line } => {
-                let (params, _return_type) = match self.lookup(name) {
-                    Some(Symbol::Fun {
-                        params,
-                        return_type: _return_type,
-                    }) => (params.clone(), _return_type.clone()),
-                    Some(_) => {
-                        return Err(self.error(*line, &format!("'{}' is not a function", name,)))
-                    }
-                    None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
-                };
-                if args.len() != params.len() {
-                    return Err(self.error(
-                        *line,
-                        &format!(
-                            "'{}' expects {} arguments, got {}",
-                            name,
-                            params.len(),
-                            args.len()
-                        ),
-                    ));
-                }
-                for (arg, param_tp) in args.iter().zip(params.iter()) {
-                    let arg_tp = self.check_expr(arg)?;
-                    if !is_compatible(param_tp, &arg_tp) {
-                        return Err(self.error(
-                            *line,
-                            &format!(
-                                "arguments type, mismatch: expected {}, got {}",
-                                get_type_name(param_tp),
-                                get_type_name(&arg_tp)
-                            ),
-                        ));
-                    }
-                }
+                self.check_call(name, args, *line);
                 Ok(())
             }
             _ => Ok(()),
@@ -131,57 +112,24 @@ impl<'a> Sema<'a> {
                 let inner = self.check_expr(expr)?;
                 Ok(Types::Pointer(Box::new(inner)))
             }
-            Expr::Dereference { expr, line } => {
-                let inner = self.check_expr(expr)?;
-                match &inner {
-                    Types::Pointer(point) | Types::OptionPointer(point) => Ok(*point.clone()),
-                    _ => Err(self.error(*line, "dereference requires a pointer type")),
+            Expr::Dereference { expr, depth, line } => {
+                let mut tp = self.check_expr(expr)?;
+                for _ in 0..*depth {
+                    match tp {
+                        Types::Pointer(inner) | Types::OptionPointer(inner) => {
+                            tp = *inner;
+                        }
+                        _ => return Err(self.error(*line, "dereference requires a pointer type")),
+                    }
                 }
+                Ok(tp)
             }
-
             Expr::Id { name, line } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
                 Some(_) => Err(self.error(*line, &format!("'{}' is not a variable", name))),
                 None => Err(self.error(*line, &format!("'{}' is an undefined variable", name))),
             },
-
-            Expr::Call { name, args, line } => {
-                let (params, return_type) = match self.lookup(name) {
-                    Some(Symbol::Fun {
-                        params,
-                        return_type,
-                    }) => (params.clone(), return_type.clone()),
-                    Some(_) => {
-                        return Err(self.error(*line, &format!("'{}' is not a function", name,)))
-                    }
-                    None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
-                };
-                if args.len() != params.len() {
-                    return Err(self.error(
-                        *line,
-                        &format!(
-                            "'{}' expects {} arguments, got {}",
-                            name,
-                            params.len(),
-                            args.len()
-                        ),
-                    ));
-                }
-                for (arg, param_tp) in args.iter().zip(params.iter()) {
-                    let arg_tp = self.check_expr(arg)?;
-                    if !is_compatible(param_tp, &arg_tp) {
-                        return Err(self.error(
-                            *line,
-                            &format!(
-                                "arguments type, mismatch: expected {}, got {}",
-                                get_type_name(param_tp),
-                                get_type_name(&arg_tp)
-                            ),
-                        ));
-                    }
-                }
-                Ok(return_type)
-            }
+            Expr::Call { name, args, line } => self.check_call(name, args, *line),
 
             _ => Err(self.error(0, "unimplemented expression")),
         }
@@ -338,14 +286,14 @@ impl<'a> Sema<'a> {
                 }
                 _ => Err(self.error(line, &format!("'{}' is not a mutable variable", name))),
             },
-            Expr::Derefer { expr, depth, line } => {
-                let mut tp = self.check_lvalue(inner, *line)?;
+            Expr::Dereference { expr, depth, line } => {
+                let mut tp = self.check_lvalue(expr, *line)?;
                 for _ in 0..*depth {
-                    match &tp {
-                        Types::Pointer(point) | Types::OptionPointer(point) => {
-                            tp = *inner.clone();
+                    match tp {
+                        Types::Pointer(inner) | Types::OptionPointer(inner) => {
+                            tp = *inner;
                         }
-                        _ => Err(self.error(line, "cannot dereference non-pointer type")),
+                        _ => return Err(self.error(*line, "cannot dereference non-pointer type")),
                     }
                 }
                 Ok(tp)
@@ -544,54 +492,40 @@ impl<'a> Sema<'a> {
         Ok(())
     }
 
-    fn check_deref_assign(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::DerefAssign {
-            name,
-            depth,
-            value,
-            line,
-        } = stmt
-        {
-            let mut var_tp = match self.lookup(name) {
-                Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
-                Some(Symbol::Variable { tp: _, immut: true }) => {
-                    return Err(self.error(*line, &format!("'{}' is immutable", name)));
-                }
-                Some(_) => return Err(self.error(*line, &format!("'{}' is not a variable", name))),
-                None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
-            };
-
-            for _ in 0..*depth {
-                match &var_tp {
-                    Types::Pointer(inner) | Types::OptionPointer(inner) => {
-                        var_tp = *inner.clone();
-                    }
-                    _ => {
-                        return Err(self.error(
-                            *line,
-                            &format!(
-                                "cannot dereference non-pointer type '{}' {} times",
-                                get_type_name(&var_tp),
-                                depth
-                            ),
-                        ));
-                    }
-                }
-            }
-
-            let val_tp = self.check_expr(value)?;
-            if !is_compatible(&var_tp, &val_tp) {
+    fn check_call(&mut self, name: &str, args: &[Expr], line: usize) -> Result<Types, AsteriError> {
+        let (params, return_type) = match self.lookup(name) {
+            Some(Symbol::Fun {
+                params,
+                return_type,
+            }) => (params.clone(), return_type.clone()),
+            Some(_) => return Err(self.error(line, &format!("'{}' is not a function", name))),
+            None => return Err(self.error(line, &format!("'{}' is undefined", name))),
+        };
+        if args.len() != params.len() {
+            return Err(self.error(
+                line,
+                &format!(
+                    "'{}' expects {} arguments, got {}",
+                    name,
+                    params.len(),
+                    args.len()
+                ),
+            ));
+        }
+        for (arg, param_tp) in args.iter().zip(params.iter()) {
+            let arg_tp = self.check_expr(arg)?;
+            if !is_compatible(param_tp, &arg_tp) {
                 return Err(self.error(
-                    *line,
+                    line,
                     &format!(
-                        "type mismatch in deref assignment: expected '{}', got '{}'",
-                        get_type_name(&var_tp),
-                        get_type_name(&val_tp)
+                        "argument type mismatch: expected {}, got {}",
+                        get_type_name(param_tp),
+                        get_type_name(&arg_tp)
                     ),
                 ));
             }
         }
-        Ok(())
+        Ok(return_type)
     }
 
     fn push(&mut self) {
@@ -669,7 +603,7 @@ fn get_type_name(n: &Types) -> &'static str {
         Types::Str => "str",
         Types::Cstr => "cstr",
         Types::Istr => "istr",
-        _ => "type",
+        Types::Unit => "()",
     }
 }
 
@@ -692,7 +626,6 @@ fn to_op(s: &BinaryOp) -> &'static str {
         BinaryOp::ShiftLeft => "<<",
         BinaryOp::ShiftRight => ">>",
         BinaryOp::Sub => "-",
-        _ => "and",
     }
 }
 

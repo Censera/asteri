@@ -644,14 +644,24 @@ impl<'a> Parser<'a> {
     // :8
     fn parse_postfix(&mut self) -> Result<Expr, AsteriError> {
         let mut expr = self.parse_primary()?; // 9:
+        let mut depth = 0;
+        let mut line = self.line();
+
         while matches!(self.kind(), TokenKind::Caret) {
             self.advance();
-            expr = Expr::Dereference {
-                expr: Box::new(expr),
-                line: self.line(),
-            }
+            depth += 1;
+            line = self.line();
         }
-        Ok(expr)
+
+        if depth > 0 {
+            Ok(Expr::Dereference {
+                expr: Box::new(expr),
+                depth,
+                line,
+            })
+        } else {
+            Ok(expr)
+        }
     }
 
     // :9
