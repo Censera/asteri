@@ -778,17 +778,37 @@ impl<'a> Parser<'a> {
     fn expect_type(&mut self) -> Result<Types, AsteriError> {
         // ^ A pointer that can't be null
         if matches!(self.kind(), TokenKind::Caret) {
-            self.advance();
+            let mut depth = 0;
+            while matches!(self.kind(), TokenKind::Caret) {
+                self.advance();
+                depth += 1;
+            }
             let inner = self.expect_type()?;
-            return Ok(Types::Pointer(Box::new(inner)));
+            return Ok(Types::Pointer {
+                inner: Box::new(inner),
+                depth,
+            });
         }
 
         // ? A pointer that can be null
         if matches!(self.kind(), TokenKind::Huh) {
             self.advance();
-            self.expect(TokenKind::Caret)?;
+            let mut depth = 0;
+
+            while matches!(self.kind(), TokenKind::Caret) {
+                self.advance();
+                depth += 1;
+            }
+
+            if depth == 0 {
+                return Err(self.error("expected '^' after '?' for optional pointer"));
+            }
+
             let inner = self.expect_type()?;
-            return Ok(Types::OptionPointer(Box::new(inner)));
+            return Ok(Types::OptionPointer {
+                inner: Box::new(inner),
+                depth,
+            });
         }
 
         // Types

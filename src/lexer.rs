@@ -138,8 +138,8 @@ pub enum Types {
     Vector3,
     Unit,
 
-    Pointer(Box<Types>),
-    OptionPointer(Box<Types>),
+    Pointer { inner: Box<Types>, depth: usize },
+    OptionPointer { inner: Box<Types>, depth: usize },
 }
 
 #[derive(Debug)]

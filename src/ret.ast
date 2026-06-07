@@ -3,11 +3,5 @@ fn: i32 two() { return 1; }
 
 let a: i32 = one();
 
-let b: ^i32 = &a;
-let c: ^^i32 = &b;
-let d: ^^^i32 = &c;
-let e: ^^^^i32 = &d;
-let f: ^^^^^i32 = &e;
-let g: ^^^^^^i32 = &f;
-
-g^^^^^^ = two();
+let b: ?^i32 = &a;
+b^ = two();
