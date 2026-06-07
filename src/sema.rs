@@ -72,12 +72,13 @@ impl<'a> Sema<'a> {
             Stmt::If { .. } => self.check_if(stmt),
             Stmt::Loop { .. } => self.check_loop(stmt),
             Stmt::While { .. } => self.check_while(stmt),
+            Stmt::DerefAssign { .. } => self.check_deref_assign(stmt),
             Stmt::Call { name, args, line } => {
-                let (params, return_type) = match self.lookup(name) {
+                let (params, _return_type) = match self.lookup(name) {
                     Some(Symbol::Fun {
                         params,
-                        return_type,
-                    }) => (params.clone(), return_type.clone()),
+                        return_type: _return_type,
+                    }) => (params.clone(), _return_type.clone()),
                     Some(_) => {
                         return Err(self.error(*line, &format!("'{}' is not a function", name,)))
                     }
@@ -306,30 +307,51 @@ impl<'a> Sema<'a> {
     }
 
     fn check_assign(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Assign { name, value, line } = stmt {
-            let var_tp = match self.lookup(name) {
-                Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
-                Some(Symbol::Variable { tp: _, immut: true }) => {
-                    return Err(self.error(*line, &format!("'{}' is immutable", name)))
-                }
-                Some(_) => return Err(self.error(*line, &format!("'{}' is not a variable", name))),
-                None => {
-                    return Err(self.error(*line, &format!("'{}' is an undefined variable", name)))
-                }
-            };
+        if let Stmt::Assign {
+            target,
+            value,
+            line,
+        } = stmt
+        {
+            let target_tp = self.check_lvalue(target, *line)?;
             let val_tp = self.check_expr(value)?;
-            if !is_compatible(&var_tp, &val_tp) {
+            if !is_compatible(&target_tp, &val_tp) {
                 return Err(self.error(
                     *line,
                     &format!(
-                        "return type mismatch, expected: {}, got: {}",
-                        get_type_name(&var_tp),
+                        "return type mismatch, expected: '{}', got: '{}'",
+                        get_type_name(&target_tp),
                         get_type_name(&val_tp)
                     ),
                 ));
             }
         }
         Ok(())
+    }
+
+    fn check_lvalue(&mut self, expr: &Expr, line: usize) -> Result<Types, AsteriError> {
+        match expr {
+            Expr::Id { name, .. } => match self.lookup(name) {
+                Some(Symbol::Variable { tp, immut: false }) => Ok(tp.clone()),
+                Some(Symbol::Variable { tp, immut: true }) => {
+                    Err(self.error(line, &format!("'{}' is immutable", name)))
+                }
+                _ => Err(self.error(line, &format!("'{}' is not a mutable variable", name))),
+            },
+            Expr::Derefer { expr, depth, line } => {
+                let mut tp = self.check_lvalue(inner, *line)?;
+                for _ in 0..*depth {
+                    match &tp {
+                        Types::Pointer(point) | Types::OptionPointer(point) => {
+                            tp = *inner.clone();
+                        }
+                        _ => Err(self.error(line, "cannot dereference non-pointer type")),
+                    }
+                }
+                Ok(tp)
+            }
+            _ => Err(self.error(line, "invalid assignment target")),
+        }
     }
 
     fn check_binary(
@@ -518,6 +540,56 @@ impl<'a> Sema<'a> {
                 }
             }
             self.pop();
+        }
+        Ok(())
+    }
+
+    fn check_deref_assign(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
+        if let Stmt::DerefAssign {
+            name,
+            depth,
+            value,
+            line,
+        } = stmt
+        {
+            let mut var_tp = match self.lookup(name) {
+                Some(Symbol::Variable { tp, immut: false }) => tp.clone(),
+                Some(Symbol::Variable { tp: _, immut: true }) => {
+                    return Err(self.error(*line, &format!("'{}' is immutable", name)));
+                }
+                Some(_) => return Err(self.error(*line, &format!("'{}' is not a variable", name))),
+                None => return Err(self.error(*line, &format!("'{}' is undefined", name))),
+            };
+
+            for _ in 0..*depth {
+                match &var_tp {
+                    Types::Pointer(inner) | Types::OptionPointer(inner) => {
+                        var_tp = *inner.clone();
+                    }
+                    _ => {
+                        return Err(self.error(
+                            *line,
+                            &format!(
+                                "cannot dereference non-pointer type '{}' {} times",
+                                get_type_name(&var_tp),
+                                depth
+                            ),
+                        ));
+                    }
+                }
+            }
+
+            let val_tp = self.check_expr(value)?;
+            if !is_compatible(&var_tp, &val_tp) {
+                return Err(self.error(
+                    *line,
+                    &format!(
+                        "type mismatch in deref assignment: expected '{}', got '{}'",
+                        get_type_name(&var_tp),
+                        get_type_name(&val_tp)
+                    ),
+                ));
+            }
         }
         Ok(())
     }

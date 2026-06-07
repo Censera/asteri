@@ -87,8 +87,10 @@ pub enum Expr {
     },
 
     Reference(Box<Expr>), // &x
+
     Dereference {
         expr: Box<Expr>,
+        depth: usize,
         line: usize,
     }, // p^
 }
@@ -109,12 +111,6 @@ pub enum Stmt {
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
-        line: usize,
-    },
-
-    Assign {
-        name: String,
-        value: Expr,
         line: usize,
     },
 
@@ -162,6 +158,12 @@ pub enum Stmt {
 
     Ret {
         expr: Option<Expr>,
+        line: usize,
+    },
+
+    Assign {
+        target: Expr,
+        value: Expr,
         line: usize,
     },
 
