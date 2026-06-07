@@ -40,9 +40,23 @@ impl<'a> Parser<'a> {
     }
 
     fn recover(&mut self) {
+        let mut b_d = 0;
         while !self.is_eof() {
             match self.kind() {
-                TokenKind::Semicolon => {
+                TokenKind::OpeningCurly => {
+                    self.advance();
+                    b_d += 1;
+                }
+
+                TokenKind::ClosingCurly => {
+                    if b_d == 0 {
+                        return;
+                    }
+                    b_d -= 1;
+                    self.advance();
+                }
+
+                TokenKind::Semicolon if b_d == 0 => {
                     self.advance();
                     return;
                 }
@@ -54,7 +68,17 @@ impl<'a> Parser<'a> {
                 | TokenKind::Loop
                 | TokenKind::Ret
                 | TokenKind::Struct
-                | TokenKind::EOF => return,
+                | TokenKind::CBlock
+                | TokenKind::Match
+                | TokenKind::Print
+                | TokenKind::Error
+                | TokenKind::Break
+                | TokenKind::Continue
+                    if b_d == 0 =>
+                {
+                    return
+                }
+                TokenKind::EOF => return,
                 _ => self.advance(),
             }
         }
@@ -93,13 +117,47 @@ impl<'a> Parser<'a> {
             TokenKind::While => self.parse_while(),
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Match => self.parse_match(),
+            TokenKind::Break => {
+                self.advance();
+                let line = self.line();
+                if matches!(self.kind(), TokenKind::Semicolon) {
+                    self.advance();
+                }
+                Ok(Stmt::Break { line })
+            }
+            TokenKind::Continue => {
+                self.advance();
+                let line = self.line();
+                if matches!(self.kind(), TokenKind::Semicolon) {
+                    self.advance();
+                }
+                Ok(Stmt::Continue { line })
+            }
+            TokenKind::OpeningCurly => {
+                let stmts = self.parse_block()?;
+                Ok(Stmt::Block(stmts))
+            }
             TokenKind::Struct => self.parse_struct(),
             TokenKind::Ret => self.parse_ret(),
             TokenKind::CBlock => self.parse_cblock(),
             TokenKind::Id(_) => {
                 let target = self.parse_expr()?;
                 match self.kind() {
-                    TokenKind::Equal => self.parse_assign(target),
+                    TokenKind::Equal => {
+                        self.advance();
+                        let line = self.line();
+                        let value = self.parse_expr()?;
+                        self.expect(TokenKind::Semicolon)?;
+                        Ok(Stmt::Assign {
+                            target,
+                            value,
+                            line,
+                        })
+                    }
+                    TokenKind::Semicolon => {
+                        self.advance();
+                        Ok(Stmt::Expr(target))
+                    }
                     _ => Err(self.error("unexpected indentifier")),
                 }
             }
@@ -110,7 +168,7 @@ impl<'a> Parser<'a> {
     fn parse_let(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
-        let name = self.expect_id()?;
+        let name = self.expect_name()?;
 
         let tp = if matches!(self.kind(), TokenKind::Colon) {
             self.advance();
@@ -138,7 +196,7 @@ impl<'a> Parser<'a> {
     fn parse_immut(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
-        let name = self.expect_id()?;
+        let name = self.expect_name()?;
 
         let tp = if matches!(self.kind(), TokenKind::Colon) {
             self.advance();
@@ -186,7 +244,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let name = self.expect_id()?;
+        let name = self.expect_name()?;
 
         let params = if matches!(self.kind(), TokenKind::Type(Types::Unit)) {
             self.advance();
@@ -211,7 +269,7 @@ impl<'a> Parser<'a> {
     fn parse_params(&mut self) -> Result<Vec<(String, Types)>, AsteriError> {
         let mut params = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingRound) {
-            let name = self.expect_id()?;
+            let name = self.expect_name()?;
             self.expect(TokenKind::Colon)?;
             let tp = self.expect_type()?;
             params.push((name, tp));
@@ -338,7 +396,7 @@ impl<'a> Parser<'a> {
 
     fn parse_struct(&mut self) -> Result<Stmt, AsteriError> {
         self.advance();
-        let name = self.expect_id()?;
+        let name = self.expect_name()?;
         self.expect(TokenKind::OpeningCurly)?;
         let mut methods = Vec::new();
         let mut fields = Vec::new();
@@ -355,7 +413,7 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                let mtd_name = self.expect_id()?;
+                let mtd_name = self.expect_name()?;
                 self.expect(TokenKind::OpeningRound)?;
                 let params = self.parse_params()?;
                 self.expect(TokenKind::ClosingRound)?;
@@ -368,10 +426,12 @@ impl<'a> Parser<'a> {
                     body,
                 });
             } else {
-                let fld_name = self.expect_id()?;
+                let fld_name = self.expect_name()?;
                 self.expect(TokenKind::Colon)?;
                 let tp = self.expect_type()?;
-                self.expect(TokenKind::Comma)?;
+                if matches!(self.kind(), TokenKind::Comma) {
+                    self.advance();
+                };
                 fields.push(StructField { name: fld_name, tp });
             }
         }
@@ -397,44 +457,6 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::ClosingCurly)?;
         Ok(stmts)
-    }
-
-    fn parse_assign(&mut self, target: Expr) -> Result<Stmt, AsteriError> {
-        self.advance();
-        let line = self.line();
-        let value = self.parse_expr()?;
-        self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Assign {
-            target,
-            value,
-            line,
-        })
-    }
-
-    fn parse_call(&mut self, name: String) -> Result<Stmt, AsteriError> {
-        self.advance();
-
-        let line = self.line();
-
-        let args = if matches!(self.kind(), TokenKind::Type(Types::Unit)) {
-            self.advance();
-            Vec::new()
-        } else {
-            self.expect(TokenKind::OpeningRound)?;
-            let mut a = Vec::new();
-            while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
-                a.push(self.parse_expr()?);
-                if matches!(self.kind(), TokenKind::Comma) {
-                    self.advance();
-                }
-            }
-            self.expect(TokenKind::ClosingRound)?;
-            a
-        };
-
-        self.expect(TokenKind::Semicolon)?;
-
-        Ok(Stmt::Call { name, args, line })
     }
 
     // :>   parse_expr          1:
@@ -643,7 +665,7 @@ impl<'a> Parser<'a> {
 
     // :8
     fn parse_postfix(&mut self) -> Result<Expr, AsteriError> {
-        let mut expr = self.parse_primary()?; // 9:
+        let expr = self.parse_primary()?; // 9:
         let mut depth = 0;
         let mut line = self.line();
 
@@ -765,13 +787,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect_id(&mut self) -> Result<String, AsteriError> {
-        if let TokenKind::Id(s) = self.kind() {
-            let s = s.clone();
-            self.advance();
-            Ok(s)
-        } else {
-            Err(self.error("expected a variable"))
+    fn expect_name(&mut self) -> Result<String, AsteriError> {
+        match self.kind() {
+            TokenKind::Id(s) => {
+                let name = s.clone();
+                self.advance();
+                Ok(name)
+            }
+            TokenKind::Type(_) => {
+                let name = self.tokens[self.current].span.literal.clone();
+                self.advance();
+                Ok(name)
+            }
+            _ => Err(self.error("expected a name")),
         }
     }
 

@@ -7,12 +7,13 @@ impl Color {
     pub const WARNING: &'static str = "\x1b[1;30;43m";
     pub const BLUE: &'static str = "\x1b[34m";
     pub const INFO: &'static str = "\x1b[1;37;44m";
-    pub const PURPLE: &'static str = "\x1b[1;35m";
+    pub const PURPLE: &'static str = "\x1b[1;95m";
     pub const BOLD: &'static str = "\x1b[1m";
     pub const RESET: &'static str = "\x1b[0m";
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ErrorKind {
     Lexer,
     Parser,
@@ -22,6 +23,7 @@ pub enum ErrorKind {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AsteriError {
     pub kind: ErrorKind,
     pub line: usize,
@@ -65,7 +67,7 @@ fn report_section(header: &str, c1: &str, c2: &str, items: &[AsteriError]) {
     for i in items {
         let msg = format!(
             "{}{:>4} | {}{}{}{} {}-> {}{}",
-            c2,
+            Color::PURPLE,
             i.line,
             Color::RESET,
             Color::BOLD,

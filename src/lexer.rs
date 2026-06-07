@@ -2,6 +2,7 @@ use crate::error::{AsteriError, ErrorKind};
 
 // Tokens
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum TokenKind {
     // Literals
     Char(char),
@@ -49,6 +50,10 @@ pub enum TokenKind {
     ShiftRight,
     TwoAmpersands,
     TwoPipes,
+
+    Increment,
+    Decrement,
+
     Vector,
     VecPush,
     VecPop,
@@ -95,6 +100,7 @@ pub enum TokenKind {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TextSpan {
     start: usize,
     end: usize,
@@ -180,12 +186,14 @@ impl Lexer {
             self.swallow();
         }
 
-        if self.current_char() == Some('-')
-            && self.chars.get(self.current + 1).copied() == Some('-')
+        // Line Comment '//'
+        if self.current_char() == Some('/')
+            && self.chars.get(self.current + 1).copied() == Some('/')
         {
             while self.current_char() != Some('\n') && !self.is_eof() {
                 self.swallow();
             }
+
             return self.next_token();
         }
 
@@ -207,7 +215,7 @@ impl Lexer {
         } else if c.is_alphabetic() || c == '_' {
             let id = self.consume_id();
             match id.as_str() {
-                "immut" | "immutable" => TokenKind::Immut,
+                "immut" => TokenKind::Immut,
                 "let" => TokenKind::Let,
 
                 "brk" | "break" => TokenKind::Break,
@@ -220,7 +228,7 @@ impl Lexer {
                 "while" => TokenKind::While,
 
                 "enum" | "enumeration" => TokenKind::Enum,
-                "fn" | "fun" | "func" | "function" => TokenKind::Fun,
+                "fn" | "function" => TokenKind::Fun,
                 "form" => TokenKind::Form,
                 "struct" | "structure" => TokenKind::Struct,
                 "use" => TokenKind::Use,
@@ -247,7 +255,7 @@ impl Lexer {
                 "new" => TokenKind::New,
                 "true" => TokenKind::True,
 
-                "bool" | "boolean" => TokenKind::Type(Types::Bool),
+                "bool" => TokenKind::Type(Types::Bool),
                 "char" => TokenKind::Type(Types::Char),
                 "File" => TokenKind::Type(Types::File),
                 "String" => TokenKind::Type(Types::String),
@@ -257,7 +265,7 @@ impl Lexer {
 
                 "i8" => TokenKind::Type(Types::I8),
                 "i16" => TokenKind::Type(Types::I16),
-                "i32" | "int" | "integer" => TokenKind::Type(Types::I32),
+                "i32" | "int" => TokenKind::Type(Types::I32),
                 "i64" => TokenKind::Type(Types::I64),
                 "u8" => TokenKind::Type(Types::U8),
                 "u16" => TokenKind::Type(Types::U16),
@@ -266,18 +274,28 @@ impl Lexer {
 
                 "f32" | "float" => TokenKind::Type(Types::F32),
                 "f64" | "double" => TokenKind::Type(Types::F64),
-                "Mat3" | "Matrix3x3" => TokenKind::Type(Types::Matrix3x3),
-                "Mat4" | "Matrix4x4" => TokenKind::Type(Types::Matrix4x4),
-                "Vec2" | "Vector2" => TokenKind::Type(Types::Vector2),
-                "Vec3" | "Vector3" => TokenKind::Type(Types::Vector3),
+                "Mat3" => TokenKind::Type(Types::Matrix3x3),
+                "Mat4" => TokenKind::Type(Types::Matrix4x4),
+                "Vec2" => TokenKind::Type(Types::Vector2),
+                "Vec3" => TokenKind::Type(Types::Vector3),
 
                 _ => TokenKind::Id(id),
             }
         } else {
             self.swallow();
             match c {
-                '+' => TokenKind::Plus,
-                '-' => self.is_compound('>', TokenKind::Arrow, TokenKind::Minus),
+                '+' => self.is_compound('+', TokenKind::Increment, TokenKind::Plus),
+                '-' => match self.current_char() {
+                    Some('-') => {
+                        self.swallow();
+                        TokenKind::Decrement
+                    }
+                    Some('>') => {
+                        self.swallow();
+                        TokenKind::Arrow
+                    }
+                    _ => TokenKind::Minus,
+                },
                 '*' => TokenKind::Asterisk,
                 '/' => TokenKind::Slash,
                 ',' => TokenKind::Comma,

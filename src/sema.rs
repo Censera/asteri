@@ -3,6 +3,7 @@ use crate::error::{AsteriError, ErrorKind};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum Symbol {
     Variable {
         tp: Types,
@@ -77,6 +78,10 @@ impl<'a> Sema<'a> {
             Stmt::Loop { .. } => self.check_loop(stmt),
             Stmt::While { .. } => self.check_while(stmt),
             Stmt::CBlock(_) => Ok(()),
+            Stmt::Struct { name, .. } => {
+                self.define(name.clone(), Symbol::Struct(name.clone()));
+                Ok(())
+            }
             Stmt::Block(stmts) => {
                 self.push();
                 for s in stmts {
@@ -88,7 +93,7 @@ impl<'a> Sema<'a> {
                 Ok(())
             }
             Stmt::Call { name, args, line } => {
-                self.check_call(name, args, *line);
+                self.check_call(name, args, *line)?;
                 Ok(())
             }
             _ => Ok(()),
@@ -100,7 +105,7 @@ impl<'a> Sema<'a> {
             Expr::Int(_) => Ok(Types::I64),
             Expr::Float(_) => Ok(Types::F64),
             Expr::Bool(_) => Ok(Types::Bool),
-            Expr::Str(_) => Ok(Types::String),
+            Expr::Str(_) => Ok(Types::Str),
             Expr::Binary {
                 left,
                 op,
@@ -110,19 +115,51 @@ impl<'a> Sema<'a> {
             Expr::Unary { op, expr, line } => self.check_unary(op, expr, *line),
             Expr::Reference(expr) => {
                 let inner = self.check_expr(expr)?;
-                Ok(Types::Pointer(Box::new(inner)))
-            }
-            Expr::Dereference { expr, depth, line } => {
-                let mut tp = self.check_expr(expr)?;
-                for _ in 0..*depth {
-                    match tp {
-                        Types::Pointer(inner) | Types::OptionPointer(inner) => {
-                            tp = *inner;
-                        }
-                        _ => return Err(self.error(*line, "dereference requires a pointer type")),
-                    }
+                match inner {
+                    Types::Pointer {
+                        inner: ptr_inner,
+                        depth,
+                    } => Ok(Types::Pointer {
+                        inner: ptr_inner,
+                        depth: depth + 1,
+                    }),
+                    Types::OptionPointer {
+                        inner: ptr_inner,
+                        depth,
+                    } => Ok(Types::Pointer {
+                        inner: ptr_inner,
+                        depth: depth + 1,
+                    }),
+                    other => Ok(Types::Pointer {
+                        inner: Box::new(other),
+                        depth: 1,
+                    }),
                 }
-                Ok(tp)
+            }
+            Expr::Dereference {
+                expr,
+                depth: deref_depth,
+                line,
+            } => {
+                let tp = self.check_expr(expr)?;
+                match tp {
+                    Types::Pointer { inner, depth } | Types::OptionPointer { inner, depth } => {
+                        if depth < *deref_depth {
+                            return Err(
+                                self.error(*line, "dereference depth exceeds pointer depth")
+                            );
+                        }
+                        if depth == *deref_depth {
+                            Ok(*inner)
+                        } else {
+                            Ok(Types::Pointer {
+                                inner,
+                                depth: depth - deref_depth,
+                            })
+                        }
+                    }
+                    _ => Err(self.error(*line, "dereference requires a pointer type")),
+                }
             }
             Expr::Id { name, line } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
@@ -281,22 +318,35 @@ impl<'a> Sema<'a> {
         match expr {
             Expr::Id { name, .. } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => Ok(tp.clone()),
-                Some(Symbol::Variable { tp, immut: true }) => {
+                Some(Symbol::Variable { immut: true, .. }) => {
                     Err(self.error(line, &format!("'{}' is immutable", name)))
                 }
                 _ => Err(self.error(line, &format!("'{}' is not a mutable variable", name))),
             },
-            Expr::Dereference { expr, depth, line } => {
-                let mut tp = self.check_lvalue(expr, *line)?;
-                for _ in 0..*depth {
-                    match tp {
-                        Types::Pointer(inner) | Types::OptionPointer(inner) => {
-                            tp = *inner;
+            Expr::Dereference {
+                expr,
+                depth: deref_depth,
+                line,
+            } => {
+                let tp = self.check_lvalue(expr, *line)?;
+                match &tp {
+                    Types::Pointer { inner, depth } | Types::OptionPointer { inner, depth } => {
+                        if *depth < *deref_depth {
+                            return Err(
+                                self.error(*line, "dereference depth surpasse pointer depth")
+                            );
                         }
-                        _ => return Err(self.error(*line, "cannot dereference non-pointer type")),
+                        if *depth == *deref_depth {
+                            Ok(*inner.clone())
+                        } else {
+                            Ok(Types::Pointer {
+                                inner: inner.clone(),
+                                depth: depth - deref_depth,
+                            })
+                        }
                     }
+                    _ => Err(self.error(*line, "cannot dereference non-pointer type")),
                 }
-                Ok(tp)
             }
             _ => Err(self.error(line, "invalid assignment target")),
         }
@@ -364,7 +414,7 @@ impl<'a> Sema<'a> {
             name,
             params,
             body,
-            line,
+            ..
         } = stmt
         else {
             unreachable!()
@@ -558,6 +608,23 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
     if exp == got {
         return true;
     }
+
+    if let (
+        Types::OptionPointer {
+            inner: e,
+            depth: ed,
+        },
+        Types::Pointer {
+            inner: g,
+            depth: gd,
+        },
+    ) = (exp, got)
+    {
+        if ed == gd && is_compatible(e, g) {
+            return true;
+        }
+    }
+
     let int_types = [
         Types::I8,
         Types::I16,
@@ -568,6 +635,7 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
         Types::U32,
         Types::U64,
     ];
+
     let flt_types = [Types::F32, Types::F64];
 
     let exp_int = int_types.contains(exp);
@@ -598,8 +666,8 @@ fn get_type_name(n: &Types) -> &'static str {
         Types::Matrix4x4 => "matrix4x4",
         Types::Vector2 => "vector2",
         Types::Vector3 => "vector3",
-        Types::Pointer(_) => "pointer",
-        Types::OptionPointer(_) => "optional pointer",
+        Types::Pointer { inner: _, depth: _ } => "pointer",
+        Types::OptionPointer { inner: _, depth: _ } => "optional pointer",
         Types::Str => "str",
         Types::Cstr => "cstr",
         Types::Istr => "istr",

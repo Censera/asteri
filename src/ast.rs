@@ -1,6 +1,7 @@
 pub use crate::lexer::Types;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum UnaryOp {
     Not,    // !
     Minus,  // -
@@ -8,6 +9,7 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -30,24 +32,28 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MatchArm {
     pub pattern: MatchPattern,
     pub body: Vec<Stmt>,
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum MatchPattern {
     Expr(Expr),
     Default,
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StructField {
     pub name: String,
     pub tp: Types,
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct StructMethod {
     pub is_immut: bool,
     pub rt_tp: Option<Types>,
@@ -57,6 +63,7 @@ pub struct StructMethod {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Expr {
     Int(i64),
     Bool(bool),
@@ -96,7 +103,9 @@ pub enum Expr {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Stmt {
+    Expr(Expr),
     Print(Expr),
     Error(Expr),
 
@@ -164,6 +173,14 @@ pub enum Stmt {
     Assign {
         target: Expr,
         value: Expr,
+        line: usize,
+    },
+
+    Break {
+        line: usize,
+    },
+
+    Continue {
         line: usize,
     },
 
