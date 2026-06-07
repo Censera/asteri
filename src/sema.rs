@@ -1,4 +1,4 @@
-use crate::ast::{BinaryOp, Expr, Stmt, Types, UnaryOp};
+use crate::ast::{BinaryOp, Expr, LambdaBody, Stmt, Types, UnaryOp};
 use crate::error::{AsteriError, ErrorKind};
 use std::collections::HashMap;
 
@@ -12,7 +12,7 @@ pub enum Symbol {
 
     Fun {
         params: Vec<Types>,
-        return_type: Types,
+        return_type: Box<Types>,
     },
 
     Struct(String),
@@ -22,6 +22,7 @@ pub struct Sema<'a> {
     input: &'a str,
     scopes: Vec<HashMap<String, Symbol>>,
     returns: Types,
+    in_loop: bool,
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
     info: Vec<AsteriError>,
@@ -33,6 +34,7 @@ impl<'a> Sema<'a> {
             input,
             scopes: vec![HashMap::new()],
             returns: Types::Unit,
+            in_loop: false,
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -62,22 +64,38 @@ impl<'a> Sema<'a> {
     fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         match stmt {
             Stmt::Print(expr) => {
-                self.check_expr(expr)?;
+                self.check_expr(expr, 0)?;
                 Ok(())
             }
             Stmt::Error(expr) => {
-                self.check_expr(expr)?;
+                self.check_expr(expr, 0)?;
                 Ok(())
             }
-            Stmt::Let { .. } => self.check_let(stmt),
-            Stmt::Immut { .. } => self.check_immut(stmt),
+            Stmt::Let { .. } => self.check_decl(stmt, false),
+            Stmt::Immut { .. } => self.check_decl(stmt, true),
             Stmt::Assign { .. } => self.check_assign(stmt),
             Stmt::Fun { .. } => self.check_fun(stmt),
             Stmt::Ret { .. } => self.check_ret(stmt),
             Stmt::If { .. } => self.check_if(stmt),
             Stmt::Loop { .. } => self.check_loop(stmt),
             Stmt::While { .. } => self.check_while(stmt),
+            Stmt::Break { line } => {
+                if !self.in_loop {
+                    return Err(self.error(*line, "'break' outside of loop"));
+                }
+                Ok(())
+            }
+            Stmt::Continue { line } => {
+                if !self.in_loop {
+                    return Err(self.error(*line, "'continue' outside of loop"));
+                }
+                Ok(())
+            }
             Stmt::CBlock(_) => Ok(()),
+            Stmt::Expr { expr, line } => {
+                self.check_expr(expr, *line)?;
+                Ok(())
+            }
             Stmt::Struct { name, .. } => {
                 self.define(name.clone(), Symbol::Struct(name.clone()));
                 Ok(())
@@ -96,16 +114,41 @@ impl<'a> Sema<'a> {
                 self.check_call(name, args, *line)?;
                 Ok(())
             }
+            Stmt::Thunk { name, body, line } => {
+                let return_type = match body {
+                    LambdaBody::Expr(expr) => self.check_expr(expr, *line)?,
+                    LambdaBody::Block(stmts) => {
+                        self.push();
+                        for stmt in stmts {
+                            self.check_stmt(stmt)?;
+                        }
+                        self.pop();
+                        Types::Unit
+                    }
+                };
+                self.define(
+                    name.clone(),
+                    Symbol::Variable {
+                        tp: Types::Fun {
+                            params: vec![],
+                            return_type: Box::new(return_type),
+                        },
+                        immut: false,
+                    },
+                );
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
 
-    fn check_expr(&mut self, expr: &Expr) -> Result<Types, AsteriError> {
+    fn check_expr(&mut self, expr: &Expr, _line: usize) -> Result<Types, AsteriError> {
         match expr {
             Expr::Int(_) => Ok(Types::I64),
             Expr::Float(_) => Ok(Types::F64),
             Expr::Bool(_) => Ok(Types::Bool),
             Expr::Str(_) => Ok(Types::Str),
+            Expr::Unit => Ok(Types::Unit),
             Expr::Binary {
                 left,
                 op,
@@ -114,7 +157,7 @@ impl<'a> Sema<'a> {
             } => self.check_binary(left, op, right, *line),
             Expr::Unary { op, expr, line } => self.check_unary(op, expr, *line),
             Expr::Reference(expr) => {
-                let inner = self.check_expr(expr)?;
+                let inner = self.check_expr(expr, _line)?;
                 match inner {
                     Types::Pointer {
                         inner: ptr_inner,
@@ -141,7 +184,7 @@ impl<'a> Sema<'a> {
                 depth: deref_depth,
                 line,
             } => {
-                let tp = self.check_expr(expr)?;
+                let tp = self.check_expr(expr, *line)?;
                 match tp {
                     Types::Pointer { inner, depth } | Types::OptionPointer { inner, depth } => {
                         if depth < *deref_depth {
@@ -163,131 +206,114 @@ impl<'a> Sema<'a> {
             }
             Expr::Id { name, line } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: _ }) => Ok(tp.clone()),
-                Some(_) => Err(self.error(*line, &format!("'{}' is not a variable", name))),
-                None => Err(self.error(*line, &format!("'{}' is an undefined variable", name))),
+                Some(_) => Err(self.error(*line, format!("'{}' is not a variable", name))),
+                None => Err(self.error(*line, format!("'{}' is an undefined variable", name))),
             },
             Expr::Call { name, args, line } => self.check_call(name, args, *line),
-
-            _ => Err(self.error(0, "unimplemented expression")),
+            Expr::Lambda { params, body, line } => {
+                let param_types: Vec<Types> = params.iter().map(|_| Types::I64).collect();
+                let return_type = match body {
+                    LambdaBody::Expr(expr) => {
+                        self.push();
+                        for (name, tp) in params.iter().zip(&param_types) {
+                            self.define(
+                                name.clone(),
+                                Symbol::Variable {
+                                    tp: tp.clone(),
+                                    immut: false,
+                                },
+                            );
+                        }
+                        let result = self.check_expr(expr, *line)?;
+                        self.pop();
+                        result
+                    }
+                    LambdaBody::Block(stmts) => {
+                        self.push();
+                        let prev_returns = self.returns.clone();
+                        self.returns = Types::Unit;
+                        for (name, tp) in params.iter().zip(&param_types) {
+                            self.define(
+                                name.clone(),
+                                Symbol::Variable {
+                                    tp: tp.clone(),
+                                    immut: false,
+                                },
+                            );
+                        }
+                        for stmt in stmts {
+                            self.check_stmt(stmt)?;
+                        }
+                        self.returns = prev_returns;
+                        self.pop();
+                        Types::Unit
+                    }
+                };
+                Ok(Types::Fun {
+                    params: param_types,
+                    return_type: Box::new(return_type),
+                })
+            }
+            Expr::MethodCall { object, method, args, line } => {
+                let obj_tp = self.check_expr(object, *line)?;
+                Err(self.error(*line, "method call not yet implemented"))
+            }
         }
     }
 
-    fn check_let(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Let {
-            name,
-            tp,
-            value,
-            line,
-        } = stmt
-        {
-            if self.scopes.last().unwrap().contains_key(name.as_str()) {
-                return Err(self.error(
-                    *line,
-                    &format!("'{}' is already declared in this scope", name),
-                ));
-            }
+    fn check_decl(&mut self, stmt: &Stmt, immut: bool) -> Result<(), AsteriError> {
+        let (name, tp, value, line) = match stmt {
+            Stmt::Let {
+                name,
+                tp,
+                value,
+                line,
+            } => (name, tp, value, line),
+            Stmt::Immut {
+                name,
+                tp,
+                value,
+                line,
+            } => (name, tp, value, line),
+            _ => unreachable!(),
+        };
 
-            let res_tp = match (tp, value) {
-                (Some(t), None) => t.clone(),
+        if self.scopes.last().unwrap().contains_key(name.as_str()) {
+            return Err(self.error(
+                *line,
+                format!("'{}' is already declared in this scope", name),
+            ));
+        }
 
-                (Some(t), Some(expr)) => {
-                    let init_tp = self.check_expr(expr)?;
-                    if !is_compatible(t, &init_tp) {
-                        return Err(self.error(
-                            *line,
-                            &format!(
-                                "type mismatch: declared '{}' but initialized with '{}'",
-                                get_type_name(t),
-                                get_type_name(&init_tp)
-                            ),
-                        ));
-                    }
-                    t.clone()
-                }
-
-                (None, Some(expr)) => {
-                    let init_tp = self.check_expr(expr)?;
-                    init_tp
-                }
-
-                (None, None) => {
+        let res_tp = match (tp, value) {
+            (Some(t), None) => t.clone(),
+            (Some(t), Some(expr)) => {
+                let init_tp = self.check_expr(expr, *line)?;
+                if !is_compatible(t, &init_tp) {
                     return Err(self.error(
                         *line,
-                        &format!(
-                            "cannot infer type of '{}', need type annotation or initializer",
-                            name
+                        format!(
+                            "type mismatch: declared '{}' but initialized with '{}'",
+                            get_type_name(t),
+                            get_type_name(&init_tp)
                         ),
-                    ))
+                    ));
                 }
-            };
-
-            self.define(
-                name.clone(),
-                Symbol::Variable {
-                    tp: res_tp.clone(),
-                    immut: false,
-                },
-            );
-        }
-        Ok(())
-    }
-
-    fn check_immut(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
-        if let Stmt::Immut {
-            name,
-            tp,
-            value,
-            line,
-        } = stmt
-        {
-            if self.scopes.last().unwrap().contains_key(name.as_str()) {
+                t.clone()
+            }
+            (None, Some(expr)) => self.check_expr(expr, *line)?,
+            (None, None) => {
                 return Err(self.error(
                     *line,
-                    &format!("'{}' is already declared in this scope", name),
-                ));
+                    format!(
+                        "cannot infer type of '{}', need type annotation or initializer",
+                        name
+                    ),
+                ))
             }
-            let res_tp = match (tp, value) {
-                (Some(t), None) => t.clone(),
+        };
 
-                (Some(t), Some(expr)) => {
-                    let init_tp = self.check_expr(expr)?;
-                    if !is_compatible(t, &init_tp) {
-                        return Err(self.error(
-                            *line,
-                            &format!(
-                                "type mismatch: declared '{}' but initialized with '{}'",
-                                get_type_name(t),
-                                get_type_name(&init_tp)
-                            ),
-                        ));
-                    }
-                    t.clone()
-                }
-
-                (None, Some(expr)) => {
-                    let init_tp = self.check_expr(expr)?;
-                    init_tp
-                }
-
-                (None, None) => {
-                    return Err(self.error(
-                        *line,
-                        &format!(
-                            "cannot infer type of '{}', need type annotation or initializer",
-                            name
-                        ),
-                    ))
-                }
-            };
-
-            self.define(
-                name.clone(),
-                Symbol::Variable {
-                    tp: res_tp.clone(),
-                    immut: true,
-                },
-            );
-        }
+        self.define(name.clone(), Symbol::Variable { tp: res_tp, immut });
         Ok(())
     }
 
@@ -299,11 +325,11 @@ impl<'a> Sema<'a> {
         } = stmt
         {
             let target_tp = self.check_lvalue(target, *line)?;
-            let val_tp = self.check_expr(value)?;
+            let val_tp = self.check_expr(value, *line)?;
             if !is_compatible(&target_tp, &val_tp) {
                 return Err(self.error(
                     *line,
-                    &format!(
+                    format!(
                         "return type mismatch, expected: '{}', got: '{}'",
                         get_type_name(&target_tp),
                         get_type_name(&val_tp)
@@ -319,9 +345,9 @@ impl<'a> Sema<'a> {
             Expr::Id { name, .. } => match self.lookup(name) {
                 Some(Symbol::Variable { tp, immut: false }) => Ok(tp.clone()),
                 Some(Symbol::Variable { immut: true, .. }) => {
-                    Err(self.error(line, &format!("'{}' is immutable", name)))
+                    Err(self.error(line, format!("'{}' is immutable", name)))
                 }
-                _ => Err(self.error(line, &format!("'{}' is not a mutable variable", name))),
+                _ => Err(self.error(line, format!("'{}' is not a mutable variable", name))),
             },
             Expr::Dereference {
                 expr,
@@ -359,15 +385,15 @@ impl<'a> Sema<'a> {
         right: &Expr,
         line: usize,
     ) -> Result<Types, AsteriError> {
-        let lt = self.check_expr(left)?;
-        let rt = self.check_expr(right)?;
+        let lt = self.check_expr(left, line)?;
+        let rt = self.check_expr(right, line)?;
         if !is_compatible(&lt, &rt) {
             return Err(self.error(
                 line,
-                &format!(
+                format!(
                     "({} {} {}): type mismatch in binary opration",
                     get_type_name(&lt),
-                    to_op(&op),
+                    to_op(op),
                     get_type_name(&rt)
                 ),
             ));
@@ -391,7 +417,7 @@ impl<'a> Sema<'a> {
         expr: &Expr,
         line: usize,
     ) -> Result<Types, AsteriError> {
-        let inner = self.check_expr(expr)?;
+        let inner = self.check_expr(expr, line)?;
         match op {
             UnaryOp::Minus | UnaryOp::BitNot => {
                 if !is_numeric(&inner) {
@@ -423,7 +449,7 @@ impl<'a> Sema<'a> {
             name.clone(),
             Symbol::Fun {
                 params: params.iter().map(|(_, t)| t.clone()).collect(),
-                return_type: rt_tp.clone().unwrap_or(Types::Unit),
+                return_type: Box::new(rt_tp.clone().unwrap_or(Types::Unit)),
             },
         );
         let previous = self.returns.clone();
@@ -452,14 +478,14 @@ impl<'a> Sema<'a> {
         if let Stmt::Ret { expr, line } = stmt {
             match expr {
                 Some(e) => {
-                    let t = self.check_expr(e)?;
+                    let t = self.check_expr(e, *line)?;
                     if self.returns == Types::Unit {
                         return Err(self.error(*line, "unexpected return value in void function"));
                     }
                     if !is_compatible(&self.returns, &t) {
                         return Err(self.error(
                             *line,
-                            &format!(
+                            format!(
                                 "return type mismatch, expected: {}, got: {}",
                                 get_type_name(&self.returns),
                                 get_type_name(&t)
@@ -485,17 +511,11 @@ impl<'a> Sema<'a> {
             line,
         } = stmt
         {
-            let cd_tp = self.check_expr(condition)?;
+            let cd_tp = self.check_expr(condition, *line)?;
             if cd_tp != Types::Bool {
                 return Err(self.error(*line, "if condition must be a boolean"));
             }
-            self.push();
-            for stmt in body {
-                if let Err(e) = self.check_stmt(stmt) {
-                    self.errors.push(e)
-                }
-            }
-            self.pop();
+            self.check_scoped_body(body);
             if let Some(else_stmt) = else_branch {
                 self.push();
                 if let Err(e) = self.check_stmt(else_stmt) {
@@ -514,32 +534,36 @@ impl<'a> Sema<'a> {
             line,
         } = stmt
         {
-            let cd_tp = self.check_expr(condition)?;
+            let cd_tp = self.check_expr(condition, *line)?;
             if cd_tp != Types::Bool {
                 return Err(self.error(*line, "while condition must be a boolean"));
             }
-            self.push();
-            for stmt in body {
-                if let Err(e) = self.check_stmt(stmt) {
-                    self.errors.push(e)
-                }
-            }
-            self.pop();
+            let prev = self.in_loop;
+            self.in_loop = true;
+            self.check_scoped_body(body);
+            self.in_loop = prev;
         }
         Ok(())
     }
 
     fn check_loop(&mut self, stmt: &Stmt) -> Result<(), AsteriError> {
         if let Stmt::Loop { body } = stmt {
-            self.push();
-            for stmt in body {
-                if let Err(e) = self.check_stmt(stmt) {
-                    self.errors.push(e)
-                }
-            }
-            self.pop();
+            let prev = self.in_loop;
+            self.in_loop = true;
+            self.check_scoped_body(body);
+            self.in_loop = prev;
         }
         Ok(())
+    }
+
+    fn check_scoped_body(&mut self, body: &[Stmt]) {
+        self.push();
+        for stmt in body {
+            if let Err(e) = self.check_stmt(stmt) {
+                self.errors.push(e);
+            }
+        }
+        self.pop();
     }
 
     fn check_call(&mut self, name: &str, args: &[Expr], line: usize) -> Result<Types, AsteriError> {
@@ -548,13 +572,13 @@ impl<'a> Sema<'a> {
                 params,
                 return_type,
             }) => (params.clone(), return_type.clone()),
-            Some(_) => return Err(self.error(line, &format!("'{}' is not a function", name))),
-            None => return Err(self.error(line, &format!("'{}' is undefined", name))),
+            Some(_) => return Err(self.error(line, format!("'{}' is not a function", name))),
+            None => return Err(self.error(line, format!("'{}' is undefined", name))),
         };
         if args.len() != params.len() {
             return Err(self.error(
                 line,
-                &format!(
+                format!(
                     "'{}' expects {} arguments, got {}",
                     name,
                     params.len(),
@@ -563,11 +587,11 @@ impl<'a> Sema<'a> {
             ));
         }
         for (arg, param_tp) in args.iter().zip(params.iter()) {
-            let arg_tp = self.check_expr(arg)?;
+            let arg_tp = self.check_expr(arg, line)?;
             if !is_compatible(param_tp, &arg_tp) {
                 return Err(self.error(
                     line,
-                    &format!(
+                    format!(
                         "argument type mismatch: expected {}, got {}",
                         get_type_name(param_tp),
                         get_type_name(&arg_tp)
@@ -575,7 +599,7 @@ impl<'a> Sema<'a> {
                 ));
             }
         }
-        Ok(return_type)
+        Ok(*return_type)
     }
 
     fn push(&mut self) {
@@ -609,21 +633,11 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
         return true;
     }
 
-    if let (
-        Types::OptionPointer {
-            inner: e,
-            depth: ed,
-        },
-        Types::Pointer {
-            inner: g,
-            depth: gd,
-        },
-    ) = (exp, got)
-    {
-        if ed == gd && is_compatible(e, g) {
+    if let (Types::OptionPointer { inner: e, depth: ed },
+        Types::Pointer   { inner: g, depth: gd }) = (exp, got)
+        && ed == gd && is_compatible(e, g) {
             return true;
         }
-    }
 
     let int_types = [
         Types::I8,
@@ -672,6 +686,7 @@ fn get_type_name(n: &Types) -> &'static str {
         Types::Cstr => "cstr",
         Types::Istr => "istr",
         Types::Unit => "()",
+        Types::Fun { .. } => "fun",
     }
 }
 

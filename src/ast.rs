@@ -63,6 +63,12 @@ pub struct StructMethod {
 }
 
 #[derive(Debug)]
+pub enum LambdaBody {
+    Expr(Box<Expr>),
+    Block(Vec<Stmt>),
+}
+
+#[derive(Debug)]
 #[allow(dead_code)]
 pub enum Expr {
     Int(i64),
@@ -100,12 +106,28 @@ pub enum Expr {
         depth: usize,
         line: usize,
     }, // p^
+
+    Lambda {
+        params: Vec<String>,
+        body: LambdaBody,
+        line: usize,
+    },
+
+    MethodCall {
+        object: Box<Expr>,
+        method: String,
+        args: Vec<Expr>,
+        line: usize,
+    },
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Stmt {
-    Expr(Expr),
+    Expr {
+        expr: Expr,
+        line: usize,
+    },
     Print(Expr),
     Error(Expr),
 
@@ -186,4 +208,10 @@ pub enum Stmt {
 
     CBlock(String),
     Block(Vec<Stmt>),
+
+    Thunk {
+        name: String,
+        body: LambdaBody,
+        line: usize,
+    },
 }

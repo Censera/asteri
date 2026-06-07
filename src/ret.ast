@@ -1,7 +1,5 @@
 // Comments
-// single line comment
 
-// Functions
 fn: i32 add(a: i32, b: i32) {
     rt a + b;
 }
@@ -21,13 +19,11 @@ fn: bool is_positive(x: i32) {
     rt x > 0;
 }
 
-// Variables & Type Inference
 let a: i32 = 42;
 let b = 100;
 immut c: i32 = 7;
 immut d = 13;
 
-// Literals
 let int_val: i32 = -1;
 let float_val: f64 = 3.14;
 let bool_true: bool = true;
@@ -35,14 +31,12 @@ let bool_false: bool = false;
 let str_val: str = "hello world";
 let str_escapes: str = "tab:\t newline:\n quote:\" slash:\\";
 
-// Arithmetic
 let sum: i32 = a + b;
 let diff: i32 = a - b;
 let prod: i32 = a * b;
 let quot: i32 = a / b;
 let neg: i32 = -a;
 
-// Bitwise
 let bit_or: i32 = a BitOr b;
 let bit_and: i32 = a BitAnd b;
 let bit_xor: i32 = a BitXor b;
@@ -50,12 +44,10 @@ let bit_not: i32 = BitNot a ;
 let shift_left: i32 = a << 2;
 let shift_right: i32 = a >> 2;
 
-// Logical
 let logic_or: bool = true || false;
 let logic_and: bool = true && false;
 let logic_not: bool = !true;
 
-// Comparison
 let eq: bool = a == b;
 let neq: bool = a != b;
 let lt: bool = a < b;
@@ -63,10 +55,8 @@ let gt: bool = a > b;
 let le: bool = a <= b;
 let ge: bool = a >= b;
 
-// Grouping
 let grouped: i32 = (a + b) * (c - d);
 
-// If / Else
 if a > b {
     print 1;
 }
@@ -85,19 +75,16 @@ if a == b {
     print 6;
 }
 
-// While
 let counter: i32 = 0;
 while counter < 10 {
     counter = counter + 1;
 }
 
-// Loop
 loop {
     print 0;
-    break;
+    break
 }
 
-// Match
 match a {
     1: {
         print 1;
@@ -115,41 +102,36 @@ match a + b {
     _: { rt; }
 }
 
-// Function Calls
 let result: i32 = add(1, 2);
 add(3, 4);
 void_func();
 
-// Pointers & References
 let x: i32 = 10;
 let px: ^i32 = &x;
 let ppx: ^^i32 = &px;
 let pppx: ^^^i32 = &ppx;
 
-// Dereference
 let val: i32 = px^;
 let val2: i32 = ppx^^;
 let val3: i32 = pppx^^^;
 
-// Assignment through pointers
 px^ = 20;
 ppx^^ = 30;
 
-// Optional Pointers
 let maybe: ?^i32 = &x;
 let also_maybe: ?^i32 = px;
 
-
-// Print / Error
 print 42;
 print "debug";
 error "something went wrong";
 
-// Structs
-struct Point {
+let Player = struct Point {
     x: i32,
     y: i32
 }
+
+let playerx = Player::x;
+let playery = Player::y;
 
 struct Vector3 {
     x: f64,
@@ -157,13 +139,26 @@ struct Vector3 {
     z: f64
 }
 
-// C Block
 C {
     printf("hello from C\n");
 }
 
-// Nested blocks
 {
     let scoped: i32 = 100;
     print scoped;
 }
+
+let mul = |a, b| a * b;
+let six = |a, b| {
+    let t = a + b;
+    t * 2;
+};
+
+let one = 1;
+let two = 2;
+
+add | one + two |
+ten | {
+    let five = one + two + two;
+    five * 2;
+} |

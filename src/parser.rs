@@ -1,5 +1,5 @@
 use crate::ast::{
-    BinaryOp, Expr, MatchArm, MatchPattern, Stmt, StructField, StructMethod, UnaryOp,
+    BinaryOp, Expr, LambdaBody, MatchArm, MatchPattern, Stmt, StructField, StructMethod, UnaryOp,
 };
 use crate::error::{AsteriError, ErrorKind};
 use crate::lexer::{Token, TokenKind, Types};
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
                 {
                     return
                 }
-                TokenKind::EOF => return,
+                TokenKind::Eof => return,
                 _ => self.advance(),
             }
         }
@@ -108,31 +108,17 @@ impl<'a> Parser<'a> {
 
     fn parse_stmt(&mut self) -> Result<Stmt, AsteriError> {
         match self.kind() {
-            TokenKind::Let => self.parse_let(),
-            TokenKind::Immut => self.parse_immut(),
-            TokenKind::Print => self.parse_print(),
-            TokenKind::Error => self.parse_error(),
+            TokenKind::Let => self.parse_decl(false),
+            TokenKind::Immut => self.parse_decl(true),
+            TokenKind::Print => self.parse_print_like(Stmt::Print),
+            TokenKind::Error => self.parse_print_like(Stmt::Error),
             TokenKind::Fun => self.parse_fun(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Match => self.parse_match(),
-            TokenKind::Break => {
-                self.advance();
-                let line = self.line();
-                if matches!(self.kind(), TokenKind::Semicolon) {
-                    self.advance();
-                }
-                Ok(Stmt::Break { line })
-            }
-            TokenKind::Continue => {
-                self.advance();
-                let line = self.line();
-                if matches!(self.kind(), TokenKind::Semicolon) {
-                    self.advance();
-                }
-                Ok(Stmt::Continue { line })
-            }
+            TokenKind::Break => self.parse_break_like(true),
+            TokenKind::Continue => self.parse_break_like(false),
             TokenKind::OpeningCurly => {
                 let stmts = self.parse_block()?;
                 Ok(Stmt::Block(stmts))
@@ -142,6 +128,7 @@ impl<'a> Parser<'a> {
             TokenKind::CBlock => self.parse_cblock(),
             TokenKind::Id(_) => {
                 let target = self.parse_expr()?;
+                let line = self.line();
                 match self.kind() {
                     TokenKind::Equal => {
                         self.advance();
@@ -154,18 +141,34 @@ impl<'a> Parser<'a> {
                             line,
                         })
                     }
+                    TokenKind::Pipe => {
+                        let Expr::Id { name, line } = target else {
+                            return Err(self.error("expected identifier for thunk"));
+                        };
+                        self.advance();
+                        let body = if matches!(self.kind(), TokenKind::OpeningCurly) {
+                            LambdaBody::Block(self.parse_block()?)
+                        } else {
+                            LambdaBody::Expr(Box::new(self.parse_expr()?))
+                        };
+                        self.expect(TokenKind::Pipe)?;
+                        if matches!(self.kind(), TokenKind::Semicolon) {
+                            self.advance();
+                        }
+                        Ok(Stmt::Thunk { name, body, line })
+                    }
                     TokenKind::Semicolon => {
                         self.advance();
-                        Ok(Stmt::Expr(target))
+                        Ok(Stmt::Expr { expr: target, line })
                     }
-                    _ => Err(self.error("unexpected indentifier")),
+                    _ => Err(self.error("unexpected identifier")),
                 }
             }
             _ => Err(self.error("unexpected keyword")),
         }
     }
 
-    fn parse_let(&mut self) -> Result<Stmt, AsteriError> {
+    fn parse_decl(&mut self, immut: bool) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
         let name = self.expect_name()?;
@@ -185,54 +188,41 @@ impl<'a> Parser<'a> {
         };
 
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Let {
-            name,
-            tp,
-            value,
-            line,
-        })
-    }
 
-    fn parse_immut(&mut self) -> Result<Stmt, AsteriError> {
+        if immut {
+            Ok(Stmt::Immut {
+                name,
+                tp,
+                value,
+                line,
+            })
+        } else {
+            Ok(Stmt::Let {
+                name,
+                tp,
+                value,
+                line,
+            })
+        }
+    }
+    fn parse_break_like(&mut self, is_break: bool) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
-        let name = self.expect_name()?;
-
-        let tp = if matches!(self.kind(), TokenKind::Colon) {
+        if matches!(self.kind(), TokenKind::Semicolon) {
             self.advance();
-            Some(self.expect_type()?)
+        }
+        if is_break {
+            Ok(Stmt::Break { line })
         } else {
-            None
-        };
-
-        let value = if matches!(self.kind(), TokenKind::Equal) {
-            self.advance();
-            Some(self.parse_expr()?)
-        } else {
-            None
-        };
-
-        self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Immut {
-            name,
-            tp,
-            value,
-            line,
-        })
+            Ok(Stmt::Continue { line })
+        }
     }
 
-    fn parse_print(&mut self) -> Result<Stmt, AsteriError> {
+    fn parse_print_like(&mut self, f: fn(Expr) -> Stmt) -> Result<Stmt, AsteriError> {
         self.advance();
         let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Print(expr))
-    }
-
-    fn parse_error(&mut self) -> Result<Stmt, AsteriError> {
-        self.advance();
-        let expr = self.parse_expr()?;
-        self.expect(TokenKind::Semicolon)?;
-        Ok(Stmt::Error(expr))
+        Ok(f(expr))
     }
 
     fn parse_fun(&mut self) -> Result<Stmt, AsteriError> {
@@ -303,7 +293,7 @@ impl<'a> Parser<'a> {
         let mut depth = 1;
         while depth > 0 {
             match self.kind() {
-                TokenKind::EOF => return Err(self.error("unterminated C block")),
+                TokenKind::Eof => return Err(self.error("unterminated C block")),
                 TokenKind::OpeningCurly => {
                     depth += 1;
                     raw_c.push('{');
@@ -378,7 +368,7 @@ impl<'a> Parser<'a> {
     fn parse_arms(&mut self) -> Result<Vec<MatchArm>, AsteriError> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut arms = Vec::new();
-        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::Eof) {
             let pattern = match self.kind() {
                 TokenKind::Id(s) if s == "_" => {
                     self.advance();
@@ -400,7 +390,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut methods = Vec::new();
         let mut fields = Vec::new();
-        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::Eof) {
             let is_immut = matches!(self.kind(), TokenKind::Immut);
             if is_immut {
                 self.advance();
@@ -446,7 +436,7 @@ impl<'a> Parser<'a> {
     fn parse_block(&mut self) -> Result<Vec<Stmt>, AsteriError> {
         self.expect(TokenKind::OpeningCurly)?;
         let mut stmts = Vec::new();
-        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::EOF) {
+        while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::Eof) {
             match self.parse_stmt() {
                 Ok(s) => stmts.push(s),
                 Err(e) => {
@@ -457,6 +447,22 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::ClosingCurly)?;
         Ok(stmts)
+    }
+    fn parse_args(&mut self) -> Result<Vec<Expr>, AsteriError> {
+        if matches!(self.kind(), TokenKind::Type(Types::Unit)) {
+            self.advance();
+            return Ok(Vec::new());
+        }
+        self.expect(TokenKind::OpeningRound)?;
+        let mut args = Vec::new();
+        while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::Eof) {
+            args.push(self.parse_expr()?);
+            if matches!(self.kind(), TokenKind::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::ClosingRound)?;
+        Ok(args)
     }
 
     // :>   parse_expr          1:
@@ -472,11 +478,8 @@ impl<'a> Parser<'a> {
     // :>
     fn parse_expr(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_logical_and()?; // 1:
-        loop {
-            let op = match self.kind() {
-                TokenKind::TwoPipes => BinaryOp::LogicOr,
-                _ => break,
-            };
+        while let TokenKind::TwoPipes = self.kind() {
+            let op = BinaryOp::LogicOr;
             self.advance();
             let line = self.line();
             let right = self.parse_logical_and()?; // 1:
@@ -493,11 +496,8 @@ impl<'a> Parser<'a> {
     // :1
     fn parse_logical_and(&mut self) -> Result<Expr, AsteriError> {
         let mut left = self.parse_additive()?; // 2:
-        loop {
-            let op = match self.kind() {
-                TokenKind::TwoAmpersands => BinaryOp::LogicAnd,
-                _ => break,
-            };
+        while let TokenKind::TwoAmpersands = self.kind() {
+            let op = BinaryOp::LogicAnd;
             self.advance();
             let line = self.line();
             let right = self.parse_additive()?; // 2:
@@ -665,25 +665,45 @@ impl<'a> Parser<'a> {
 
     // :8
     fn parse_postfix(&mut self) -> Result<Expr, AsteriError> {
-        let expr = self.parse_primary()?; // 9:
-        let mut depth = 0;
-        let mut line = self.line();
+        let mut expr = self.parse_primary()?; // 9:
+        loop {
+            match self.kind() {
+                TokenKind::Caret => {
+                    let mut depth = 0;
+                    let mut line = self.line();
+                    while matches!(self.kind(), TokenKind::Caret) {
+                        self.advance();
+                        depth += 1;
+                        line = self.line();
+                    }
 
-        while matches!(self.kind(), TokenKind::Caret) {
-            self.advance();
-            depth += 1;
-            line = self.line();
+                    expr = Expr::Dereference {
+                        expr: Box::new(expr),
+                        depth,
+                        line,
+                    };
+                }
+                TokenKind::DoubleColon => {
+                    self.advance();
+                    let name = self.expect_name()?;
+                    if matches!(
+                        self.kind(),
+                        TokenKind::OpeningRound | TokenKind::Type(Types::Unit)
+                    ) {
+                        let args = self.parse_args()?;
+                        let line = self.line();
+                        expr = Expr::MethodCall {
+                            object: Box::new(expr),
+                            method: name,
+                            args,
+                            line,
+                        };
+                    }
+                }
+                _ => break,
+            }
         }
-
-        if depth > 0 {
-            Ok(Expr::Dereference {
-                expr: Box::new(expr),
-                depth,
-                line,
-            })
-        } else {
-            Ok(expr)
-        }
+        Ok(expr)
     }
 
     // :9
@@ -736,7 +756,7 @@ impl<'a> Parser<'a> {
                 } else if matches!(self.kind(), TokenKind::OpeningRound) {
                     self.advance();
                     let mut args = Vec::new();
-                    while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::EOF) {
+                    while !matches!(self.kind(), TokenKind::ClosingRound | TokenKind::Eof) {
                         args.push(self.parse_expr()?);
                         if matches!(self.kind(), TokenKind::Comma) {
                             self.advance();
@@ -747,6 +767,25 @@ impl<'a> Parser<'a> {
                 } else {
                     Ok(Expr::Id { name, line })
                 }
+            }
+            TokenKind::Pipe => {
+                self.advance();
+                let mut params = Vec::new();
+                while !matches!(self.kind(), TokenKind::Pipe) {
+                    params.push(self.expect_name()?);
+                    if matches!(self.kind(), TokenKind::Comma) {
+                        self.advance();
+                    }
+                }
+                self.advance();
+
+                let line = self.line();
+                let body = if matches!(self.kind(), TokenKind::OpeningCurly) {
+                    LambdaBody::Block(self.parse_block()?)
+                } else {
+                    LambdaBody::Expr(Box::new(self.parse_expr()?))
+                };
+                Ok(Expr::Lambda { params, body, line })
             }
             _ => Err(self.error("expected an expression")), // :Error
         }
@@ -775,7 +814,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_eof(&self) -> bool {
-        self.current >= self.tokens.len() - 1 || matches!(self.kind(), TokenKind::EOF)
+        self.current >= self.tokens.len() - 1 || matches!(self.kind(), TokenKind::Eof)
     }
 
     fn expect(&mut self, expected: TokenKind) -> Result<(), AsteriError> {
@@ -783,7 +822,7 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(())
         } else {
-            Err(self.error(&format!("expected {}", to_symbol(&expected))))
+            Err(self.error(format!("expected {}", to_symbol(&expected))))
         }
     }
 

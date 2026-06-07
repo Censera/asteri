@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lexer = lexer::Lexer::new(&input);
     let mut tokens = Vec::new();
     while let Some(token) = lexer.next_token() {
-        let is_eof = matches!(token.kind, lexer::TokenKind::EOF);
+        let is_eof = matches!(token.kind, lexer::TokenKind::Eof);
         tokens.push(token);
         if is_eof {
             break;
@@ -70,17 +70,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         debug("Other", total_dur, other_time);
 
         println!(
-            "\nin {}\x1b[1;95m milliseconds\x1b[0m:\n{:>10} Lines\n{:>10} Words\n{:>10} Bytes",
+            "\nin {}\x1b[1;95m milliseconds\x1b[0m:\n{:>10} Lines\n{:>10.3} KB",
             start_time.elapsed().as_millis(),
             input.lines().count(),
-            input.split_whitespace().count(),
-            input.len()
+            input.len() as f64 / 1000.0
         );
     } else {
         println!(
-            "{}Compiled{} in {}{}",
-            "\x1b[1;92m",
-            "\x1b[0m",
+            "\x1b[1;92mCompiled\x1b[0m in {} {}",
             if total_dur.as_millis() < 100 {
                 total_dur.as_micros()
             } else {
@@ -103,10 +100,8 @@ fn debug(id: &str, total_time: Duration, start_time: Duration) {
     let percentage = (end_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
 
     println!(
-        "{}{:>18}{} {:02.}% finished in {}{}",
-        "\x1b[1;95m",
+        "\x1b[1;95m{:>18}\x1b[0m {:02.}% finished in {}{}",
         id,
-        "\x1b[0m",
         percentage as i64,
         if end_time.as_millis() < 100 {
             end_time.as_micros()

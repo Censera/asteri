@@ -50,6 +50,7 @@ pub enum TokenKind {
     ShiftRight,
     TwoAmpersands,
     TwoPipes,
+    DoubleColon,
 
     Increment,
     Decrement,
@@ -94,7 +95,7 @@ pub enum TokenKind {
     BitNot,
 
     // Other
-    EOF,
+    Eof,
     Id(String),
     CBlock,
 }
@@ -144,8 +145,19 @@ pub enum Types {
     Vector3,
     Unit,
 
-    Pointer { inner: Box<Types>, depth: usize },
-    OptionPointer { inner: Box<Types>, depth: usize },
+    Fun {
+        params: Vec<Types>,
+        return_type: Box<Types>,
+    },
+
+    Pointer {
+        inner: Box<Types>,
+        depth: usize,
+    },
+    OptionPointer {
+        inner: Box<Types>,
+        depth: usize,
+    },
 }
 
 #[derive(Debug)]
@@ -201,7 +213,7 @@ impl Lexer {
             Some(c) => c,
             None => {
                 return Some(Token::new(
-                    TokenKind::EOF,
+                    TokenKind::Eof,
                     TextSpan::new(self.current, self.current, "".to_string(), self.line),
                 ));
             }
@@ -210,7 +222,7 @@ impl Lexer {
         let token_line = self.line;
         let start = self.current; // The start of the token
 
-        let kind = if c.is_digit(10) {
+        let kind = if c.is_ascii_digit() {
             self.consume_number()
         } else if c.is_alphabetic() || c == '_' {
             let id = self.consume_id();
@@ -300,7 +312,7 @@ impl Lexer {
                 '/' => TokenKind::Slash,
                 ',' => TokenKind::Comma,
                 '.' => TokenKind::Dot,
-                ':' => TokenKind::Colon,
+                ':' => self.is_compound(':', TokenKind::DoubleColon, TokenKind::Colon),
                 ';' => TokenKind::Semicolon,
                 '%' => TokenKind::Percent,
                 '@' => TokenKind::At,
@@ -367,8 +379,8 @@ impl Lexer {
                 '"' => self.string_token(),
                 '\'' => self.char_token(),
                 c => {
-                    self.error(&format!("'{}' is an unexpected character", c));
-                    TokenKind::EOF
+                    self.error(format!("'{}' is an unexpected character", c));
+                    TokenKind::Eof
                 }
             }
         };
@@ -399,7 +411,7 @@ impl Lexer {
     fn consume_number(&mut self) -> TokenKind {
         let mut int_part: i64 = 0;
         while let Some(c) = self.current_char() {
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 self.swallow().unwrap();
                 int_part = int_part * 10 + (c as i64 - '0' as i64);
             } else {
@@ -408,12 +420,12 @@ impl Lexer {
         }
         if self.current_char() == Some('.') {
             let next_char = self.chars.get(self.current + 1).copied();
-            if next_char.map_or(false, |c| c.is_digit(10)) {
+            if next_char.is_some_and(|c| c.is_ascii_digit()) {
                 self.swallow();
                 let mut fraction: f64 = 0.0;
                 let mut place = 0.1;
                 while let Some(c) = self.current_char() {
-                    if c.is_digit(10) {
+                    if c.is_ascii_digit() {
                         self.swallow();
                         fraction += (c as u8 - b'0') as f64 * place;
                         place *= 0.1;
@@ -430,7 +442,7 @@ impl Lexer {
     fn consume_id(&mut self) -> String {
         let mut id = String::new();
         while let Some(c) = self.current_char() {
-            if c.is_alphabetic() || c == '_' || c.is_digit(10) {
+            if c.is_alphabetic() || c == '_' || c.is_ascii_digit() {
                 self.swallow().unwrap();
                 id.push(c);
             } else {
@@ -473,7 +485,7 @@ impl Lexer {
     }
 
     fn consume_escape(&mut self) -> char {
-        let c = match self.current_char() {
+        match self.current_char() {
             Some('\\') => {
                 self.swallow();
                 match self.current_char() {
@@ -502,7 +514,7 @@ impl Lexer {
                         '\\'
                     }
                     c => {
-                        self.error(&format!("'{:?}' is an invalid escape sequence", c));
+                        self.error(format!("'{:?}' is an invalid escape sequence", c));
                         '\0'
                     }
                 }
@@ -512,11 +524,10 @@ impl Lexer {
                 ch
             }
             None => {
-                self.error("unexpected EOF inside literal");
+                self.error("unexpected Eof inside literal");
                 '\0'
             }
-        };
-        c
+        }
     }
 
     fn char_token(&mut self) -> TokenKind {
