@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
-    let is_debug = true;
+    let is_debug = false;
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     } else {
         println!(
-            "\x1b[1;92mCompiled\x1b[0m in {} {}",
+            "\x1b[1;92mFinished\x1b[0m in {}{}",
             if total_dur.as_millis() < 100 {
                 total_dur.as_micros()
             } else {

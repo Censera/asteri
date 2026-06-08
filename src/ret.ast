@@ -125,13 +125,10 @@ print 42;
 print "debug";
 error "something went wrong";
 
-let Player = struct Point {
+struct Point {
     x: i32,
     y: i32
 }
-
-let playerx = Player::x;
-let playery = Player::y;
 
 struct Vector3 {
     x: f64,
