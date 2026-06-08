@@ -14,7 +14,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
-        eprintln!("\t<Use>\nac [file.ast]");
+        eprintln!("\n\t\x1b[1;45m \u{2731}\x1b[0m asteri\n");
+        eprintln!("\tHELP:\n\t\t> ac [file.ast]");
         return Ok(());
     }
 

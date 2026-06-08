@@ -783,6 +783,13 @@ impl<'a> Parser<'a> {
                 Ok(e)
             }
 
+            TokenKind::FmtStr(raw) => {
+                let raw = raw.clone();
+                let line = self.line();
+                self.advance();
+                Ok(Expr::FmtStr { raw, line })
+            }
+
             TokenKind::New => {
                 self.advance();
                 let line = self.line();

@@ -187,6 +187,7 @@ impl<'a> Sema<'a> {
             Expr::Bool(_) => Ok(Types::Bool),
             Expr::Str(_) => Ok(Types::Str),
             Expr::Unit => Ok(Types::Unit),
+            Expr::FmtStr { .. } => Ok(Types::Str),
             Expr::Binary {
                 left,
                 op,

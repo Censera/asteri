@@ -95,6 +95,7 @@ pub enum TokenKind {
     BitNot,
 
     // Other
+    FmtStr(String),
     Eof,
     Id(String),
     CBlock,
@@ -212,6 +213,29 @@ impl Lexer {
             }
 
             return self.next_token();
+        }
+
+        if self.current_char() == Some('f')
+            && self.chars.get(self.current + 1).copied() == Some('"')
+        {
+            self.swallow();
+            self.swallow();
+            let token_line = self.line;
+            let start = self.current;
+            let mut raw = String::new();
+            while self.current_char() != Some('"') && !self.is_eof() {
+                raw.push(self.current_char().unwrap());
+                self.swallow();
+            }
+            if self.current_char() == Some('"') {
+                self.swallow();
+            }
+            let end = self.current;
+            let literal = self.chars[start..end].iter().collect();
+            return Some(Token::new(
+                TokenKind::FmtStr(raw),
+                TextSpan::new(start, end, literal, token_line),
+            ));
         }
 
         let c = match self.current_char() {

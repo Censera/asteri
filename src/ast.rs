@@ -136,6 +136,11 @@ pub enum Expr {
         args: Vec<Expr>,
         line: usize,
     },
+
+    FmtStr {
+        raw: String,
+        line: usize,
+    },
 }
 
 #[derive(Debug)]

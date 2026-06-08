@@ -125,6 +125,9 @@ print 42;
 print "debug";
 error "something went wrong";
 
+let name: str = "Cens";
+print fmt("Hello, ", name); // Hello Cens
+
 struct Point {
     x: i32,
     y: i32,
