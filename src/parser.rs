@@ -1,5 +1,6 @@
 use crate::ast::{
     BinaryOp, Expr, LambdaBody, MatchArm, MatchPattern, Stmt, StructField, StructMethod, UnaryOp,
+    Vis,
 };
 use crate::error::{AsteriError, ErrorKind};
 use crate::lexer::{Token, TokenKind, Types};
@@ -50,6 +51,7 @@ impl<'a> Parser<'a> {
 
                 TokenKind::ClosingCurly => {
                     if b_d == 0 {
+                        self.advance();
                         return;
                     }
                     b_d -= 1;
@@ -107,12 +109,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_stmt(&mut self) -> Result<Stmt, AsteriError> {
+        let vis = self.parse_vis();
         match self.kind() {
-            TokenKind::Let => self.parse_decl(false),
-            TokenKind::Immut => self.parse_decl(true),
+            TokenKind::Let => self.parse_decl(vis, false),
+            TokenKind::Immut => self.parse_decl(vis, true),
             TokenKind::Print => self.parse_print_like(Stmt::Print),
             TokenKind::Error => self.parse_print_like(Stmt::Error),
-            TokenKind::Fun => self.parse_fun(),
+            TokenKind::Fun => self.parse_fun(vis),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
             TokenKind::Loop => self.parse_loop(),
@@ -123,7 +126,7 @@ impl<'a> Parser<'a> {
                 let stmts = self.parse_block()?;
                 Ok(Stmt::Block(stmts))
             }
-            TokenKind::Struct => self.parse_struct(),
+            TokenKind::Struct => self.parse_struct(vis),
             TokenKind::Ret => self.parse_ret(),
             TokenKind::CBlock => self.parse_cblock(),
             TokenKind::Id(_) => {
@@ -168,7 +171,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_decl(&mut self, immut: bool) -> Result<Stmt, AsteriError> {
+    fn parse_decl(&mut self, vis: Vis, immut: bool) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
         let name = self.expect_name()?;
@@ -191,6 +194,7 @@ impl<'a> Parser<'a> {
 
         if immut {
             Ok(Stmt::Immut {
+                vis,
                 name,
                 tp,
                 value,
@@ -198,6 +202,7 @@ impl<'a> Parser<'a> {
             })
         } else {
             Ok(Stmt::Let {
+                vis,
                 name,
                 tp,
                 value,
@@ -205,6 +210,21 @@ impl<'a> Parser<'a> {
             })
         }
     }
+
+    fn parse_vis(&mut self) -> Vis {
+        match self.kind() {
+            TokenKind::Pub => {
+                self.advance();
+                Vis::Pub
+            }
+            TokenKind::Pri => {
+                self.advance();
+                Vis::Pri
+            }
+            _ => Vis::Inh,
+        }
+    }
+
     fn parse_break_like(&mut self, is_break: bool) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
@@ -225,7 +245,7 @@ impl<'a> Parser<'a> {
         Ok(f(expr))
     }
 
-    fn parse_fun(&mut self) -> Result<Stmt, AsteriError> {
+    fn parse_fun(&mut self, vis: Vis) -> Result<Stmt, AsteriError> {
         self.advance();
         let line = self.line();
         let rt_tp = if matches!(self.kind(), TokenKind::Colon) {
@@ -248,6 +268,7 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_block()?;
         Ok(Stmt::Fun {
+            vis,
             rt_tp,
             name,
             params,
@@ -384,13 +405,14 @@ impl<'a> Parser<'a> {
         Ok(arms)
     }
 
-    fn parse_struct(&mut self) -> Result<Stmt, AsteriError> {
+    fn parse_struct(&mut self, vis: Vis) -> Result<Stmt, AsteriError> {
         self.advance();
         let name = self.expect_name()?;
         self.expect(TokenKind::OpeningCurly)?;
         let mut methods = Vec::new();
         let mut fields = Vec::new();
         while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::Eof) {
+            let s_vis = self.parse_vis();
             let is_immut = matches!(self.kind(), TokenKind::Immut);
             if is_immut {
                 self.advance();
@@ -404,11 +426,18 @@ impl<'a> Parser<'a> {
                     None
                 };
                 let mtd_name = self.expect_name()?;
-                self.expect(TokenKind::OpeningRound)?;
-                let params = self.parse_params()?;
-                self.expect(TokenKind::ClosingRound)?;
+                let params = if matches!(self.kind(), TokenKind::Type(Types::Unit)) {
+                    self.advance();
+                    Vec::new()
+                } else {
+                    self.expect(TokenKind::OpeningRound)?;
+                    let p = self.parse_params()?;
+                    self.expect(TokenKind::ClosingRound)?;
+                    p
+                };
                 let body = self.parse_block()?;
                 methods.push(StructMethod {
+                    vis: s_vis,
                     is_immut,
                     rt_tp,
                     name: mtd_name,
@@ -422,11 +451,16 @@ impl<'a> Parser<'a> {
                 if matches!(self.kind(), TokenKind::Comma) {
                     self.advance();
                 };
-                fields.push(StructField { name: fld_name, tp });
+                fields.push(StructField {
+                    vis: s_vis,
+                    name: fld_name,
+                    tp,
+                });
             }
         }
         self.expect(TokenKind::ClosingCurly)?;
         Ok(Stmt::Struct {
+            vis,
             name,
             fields,
             methods,
@@ -686,19 +720,14 @@ impl<'a> Parser<'a> {
                 TokenKind::DoubleColon => {
                     self.advance();
                     let name = self.expect_name()?;
-                    if matches!(
-                        self.kind(),
-                        TokenKind::OpeningRound | TokenKind::Type(Types::Unit)
-                    ) {
-                        let args = self.parse_args()?;
-                        let line = self.line();
-                        expr = Expr::MethodCall {
-                            object: Box::new(expr),
-                            method: name,
-                            args,
-                            line,
-                        };
-                    }
+                    let args = self.parse_args()?;
+                    let line = self.line();
+                    expr = Expr::MethodCall {
+                        object: Box::new(expr),
+                        method: name,
+                        args,
+                        line,
+                    };
                 }
                 _ => break,
             }
@@ -708,7 +737,6 @@ impl<'a> Parser<'a> {
 
     // :9
     fn parse_primary(&mut self) -> Result<Expr, AsteriError> {
-        let line = self.line();
         match self.kind() {
             TokenKind::OpeningRound => {
                 self.advance();
@@ -716,36 +744,64 @@ impl<'a> Parser<'a> {
                 self.expect(TokenKind::ClosingRound)?;
                 Ok(expr)
             }
+
             TokenKind::Type(Types::Unit) => {
                 self.advance();
                 Ok(Expr::Unit)
             }
+
             TokenKind::Int(n) => {
                 let e = Expr::Int(*n);
                 self.advance();
                 Ok(e)
             }
+
             TokenKind::Float(f) => {
                 let e = Expr::Float(*f);
                 self.advance();
                 Ok(e)
             }
+
             TokenKind::True => {
                 self.advance();
                 Ok(Expr::Bool(true))
             }
+
             TokenKind::False => {
                 self.advance();
                 Ok(Expr::Bool(false))
             }
+
             TokenKind::Str(string) => {
                 let e = Expr::Str(string.clone());
                 self.advance();
                 Ok(e)
             }
+
+            TokenKind::New => {
+                self.advance();
+                let line = self.line();
+                let name = self.expect_name()?;
+                self.expect(TokenKind::OpeningCurly)?;
+                let mut fields = Vec::new();
+                while !matches!(self.kind(), TokenKind::ClosingCurly | TokenKind::Eof) {
+                    let fld_name = self.expect_name()?;
+                    self.expect(TokenKind::Colon)?;
+                    let fld_val = self.parse_expr()?;
+                    fields.push((fld_name, fld_val));
+                    if matches!(self.kind(), TokenKind::Comma) {
+                        self.advance();
+                    }
+                }
+                self.expect(TokenKind::ClosingCurly)?;
+                Ok(Expr::StructLit { name, fields, line })
+            }
+
             TokenKind::Id(s) => {
                 let name = s.clone();
+                let line = self.line();
                 self.advance();
+
                 if matches!(self.kind(), TokenKind::Type(Types::Unit)) {
                     self.advance();
                     Ok(Expr::Call {
@@ -882,10 +938,17 @@ impl<'a> Parser<'a> {
         if let TokenKind::Type(tp) = self.kind() {
             let tp = tp.clone();
             self.advance();
-            Ok(tp)
-        } else {
-            Err(self.error("expected to specify a known type"))
+            return Ok(tp);
         }
+
+        // user types
+        if let TokenKind::Id(name) = self.kind() {
+            let name = name.clone();
+            self.advance();
+            return Ok(Types::Named(name));
+        }
+
+        Err(self.error("expected to specify a known type"))
     }
 
     pub fn take_all(self) -> (Vec<AsteriError>, Vec<AsteriError>, Vec<AsteriError>) {

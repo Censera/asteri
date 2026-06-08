@@ -1,5 +1,6 @@
 use crate::ast::{BinaryOp, Expr, LambdaBody, Stmt, Types, UnaryOp};
 use crate::error::{AsteriError, ErrorKind};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -18,11 +19,20 @@ pub enum Symbol {
     Struct(String),
 }
 
+#[derive(Debug, Clone)]
+struct StructDef {
+    fields: HashMap<String, Types>,
+    methods: HashMap<String, Symbol>,
+}
+
 pub struct Sema<'a> {
     input: &'a str,
     scopes: Vec<HashMap<String, Symbol>>,
     returns: Types,
     in_loop: bool,
+
+    struct_defs: HashMap<String, StructDef>,
+
     errors: Vec<AsteriError>,
     warnings: Vec<AsteriError>,
     info: Vec<AsteriError>,
@@ -35,6 +45,9 @@ impl<'a> Sema<'a> {
             scopes: vec![HashMap::new()],
             returns: Types::Unit,
             in_loop: false,
+
+            struct_defs: HashMap::new(),
+
             errors: Vec::new(),
             warnings: Vec::new(),
             info: Vec::new(),
@@ -96,7 +109,31 @@ impl<'a> Sema<'a> {
                 self.check_expr(expr, *line)?;
                 Ok(())
             }
-            Stmt::Struct { name, .. } => {
+            Stmt::Struct {
+                name,
+                fields,
+                methods,
+                ..
+            } => {
+                let mut field_map = HashMap::new();
+                for f in fields {
+                    field_map.insert(f.name.clone(), f.tp.clone());
+                }
+                let mut method_map = HashMap::new();
+                for m in methods {
+                    let sym = Symbol::Fun {
+                        params: m.params.iter().map(|(_, t)| t.clone()).collect(),
+                        return_type: Box::new(m.rt_tp.clone().unwrap_or(Types::Unit)),
+                    };
+                    method_map.insert(m.name.clone(), sym);
+                }
+                self.struct_defs.insert(
+                    name.clone(),
+                    StructDef {
+                        fields: field_map,
+                        methods: method_map,
+                    },
+                );
                 self.define(name.clone(), Symbol::Struct(name.clone()));
                 Ok(())
             }
@@ -254,9 +291,85 @@ impl<'a> Sema<'a> {
                     return_type: Box::new(return_type),
                 })
             }
-            Expr::MethodCall { object, method, args, line } => {
-                let obj_tp = self.check_expr(object, *line)?;
-                Err(self.error(*line, "method call not yet implemented"))
+            Expr::StructLit { name, fields, line } => {
+                let field_types = self
+                    .struct_defs
+                    .get(name)
+                    .map(|def| def.fields.clone())
+                    .ok_or_else(|| self.error(*line, format!("undefined struct '{}'", name)))?;
+
+                for (fname, fval) in fields {
+                    let field_type = field_types.get(fname).ok_or_else(|| {
+                        self.error(*line, format!("struct '{}' has no field '{}'", name, fname))
+                    })?;
+                    let val_type = self.check_expr(fval, *line)?;
+                    if !is_compatible(field_type, &val_type) {
+                        return Err(self.error(
+                            *line,
+                            format!(
+                                "field '{}' type mismatch: expected {}, got {}",
+                                fname,
+                                get_type_name(field_type),
+                                get_type_name(&val_type)
+                            ),
+                        ));
+                    }
+                }
+                Ok(Types::StructInst(name.clone()))
+            }
+            Expr::MethodCall {
+                object,
+                method,
+                args,
+                line,
+            } => {
+                let obj_type = self.check_expr(object, *line)?;
+                if let Types::StructInst(struct_name) = &obj_type {
+                    let (params, return_type) = {
+                        let def = self.struct_defs.get(struct_name).ok_or_else(|| {
+                            self.error(*line, format!("undefined struct '{}'", struct_name))
+                        })?;
+                        let sym = def.methods.get(method).ok_or_else(|| {
+                            self.error(
+                                *line,
+                                format!("struct '{}' has no method '{}'", struct_name, method),
+                            )
+                        })?;
+                        if let Symbol::Fun {
+                            params,
+                            return_type,
+                        } = sym
+                        {
+                            (params.clone(), return_type.clone())
+                        } else {
+                            return Err(self.error(*line, format!("'{}' is not a method", method)));
+                        }
+                    };
+
+                    if args.len() != params.len() {
+                        return Err(self.error(
+                            *line,
+                            format!(
+                                "method '{}' expects {} arguments, got {}",
+                                method,
+                                params.len(),
+                                args.len()
+                            ),
+                        ));
+                    }
+                    for (arg, param_type) in args.iter().zip(params.iter()) {
+                        let arg_type = self.check_expr(arg, *line)?;
+                        if !is_compatible(param_type, &arg_type) {
+                            return Err(self.error(
+                                *line,
+                                format!("argument type mismatch in method '{}'", method),
+                            ));
+                        }
+                    }
+                    Ok(*return_type)
+                } else {
+                    Err(self.error(*line, "method call requires a struct instance"))
+                }
             }
         }
     }
@@ -268,12 +381,14 @@ impl<'a> Sema<'a> {
                 tp,
                 value,
                 line,
+                ..
             } => (name, tp, value, line),
             Stmt::Immut {
                 name,
                 tp,
                 value,
                 line,
+                ..
             } => (name, tp, value, line),
             _ => unreachable!(),
         };
@@ -660,33 +775,34 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
     (exp_int && got_int) || (exp_flt && got_flt) || (exp_flt && got_int)
 }
 
-fn get_type_name(n: &Types) -> &'static str {
+fn get_type_name(n: &Types) -> Cow<'static, str> {
     match n {
-        Types::I8 => "i8",
-        Types::I16 => "i16",
-        Types::I32 => "i32",
-        Types::I64 => "i64",
-        Types::U8 => "u8",
-        Types::U16 => "u16",
-        Types::U32 => "u32",
-        Types::U64 => "u64",
-        Types::F32 => "f32",
-        Types::F64 => "f64",
-        Types::String => "string",
-        Types::Bool => "bool",
-        Types::Char => "char",
-        Types::File => "file",
-        Types::Matrix3x3 => "matrix3x3",
-        Types::Matrix4x4 => "matrix4x4",
-        Types::Vector2 => "vector2",
-        Types::Vector3 => "vector3",
-        Types::Pointer { inner: _, depth: _ } => "pointer",
-        Types::OptionPointer { inner: _, depth: _ } => "optional pointer",
-        Types::Str => "str",
-        Types::Cstr => "cstr",
-        Types::Istr => "istr",
-        Types::Unit => "()",
-        Types::Fun { .. } => "fun",
+        Types::I8 => "i8".into(),
+        Types::I16 => "i16".into(),
+        Types::I32 => "i32".into(),
+        Types::I64 => "i64".into(),
+        Types::U8 => "u8".into(),
+        Types::U16 => "u16".into(),
+        Types::U32 => "u32".into(),
+        Types::U64 => "u64".into(),
+        Types::F32 => "f32".into(),
+        Types::F64 => "f64".into(),
+        Types::String => "string".into(),
+        Types::Bool => "bool".into(),
+        Types::Char => "char".into(),
+        Types::File => "file".into(),
+        Types::Matrix3x3 => "matrix3x3".into(),
+        Types::Matrix4x4 => "matrix4x4".into(),
+        Types::Vector2 => "vector2".into(),
+        Types::Vector3 => "vector3".into(),
+        Types::Str => "str".into(),
+        Types::Cstr => "cstr".into(),
+        Types::Istr => "istr".into(),
+        Types::Unit => "()".into(),
+        Types::Pointer { .. } => "pointer".into(),
+        Types::OptionPointer { .. } => "optional pointer".into(),
+        Types::Fun { .. } => "function".into(),
+        Types::Named(name) | Types::StructInst(name) => Cow::Owned(name.clone()),
     }
 }
 

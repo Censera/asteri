@@ -145,6 +145,8 @@ pub enum Types {
     Vector3,
     Unit,
 
+    Named(String),
+
     Fun {
         params: Vec<Types>,
         return_type: Box<Types>,
@@ -158,6 +160,8 @@ pub enum Types {
         inner: Box<Types>,
         depth: usize,
     },
+
+    StructInst(String),
 }
 
 #[derive(Debug)]

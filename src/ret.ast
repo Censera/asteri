@@ -127,13 +127,25 @@ error "something went wrong";
 
 struct Point {
     x: i32,
-    y: i32
+    y: i32,
+
+    fn: i32 get_x() { rt 42; }
 }
 
-struct Vector3 {
+let p = new Point { x: 10, y: 20 };
+let p_x = p::get_x();
+
+pub struct Vector3 {
     x: f64,
     y: f64,
     z: f64
+}
+
+pub let v = new Vector3 { x: 1.0, y: 2.0, z: 3.0 };
+
+struct Node {
+    val: i32,
+    next: ?^Node
 }
 
 C {

@@ -48,6 +48,7 @@ pub enum MatchPattern {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct StructField {
+    pub vis: Vis,
     pub name: String,
     pub tp: Types,
 }
@@ -55,6 +56,7 @@ pub struct StructField {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct StructMethod {
+    pub vis: Vis,
     pub is_immut: bool,
     pub rt_tp: Option<Types>,
     pub name: String,
@@ -66,6 +68,13 @@ pub struct StructMethod {
 pub enum LambdaBody {
     Expr(Box<Expr>),
     Block(Vec<Stmt>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Vis {
+    Pub,
+    Pri,
+    Inh,
 }
 
 #[derive(Debug)]
@@ -113,6 +122,12 @@ pub enum Expr {
         line: usize,
     },
 
+    StructLit {
+        name: String,
+        fields: Vec<(String, Expr)>,
+        line: usize,
+    },
+
     MethodCall {
         object: Box<Expr>,
         method: String,
@@ -132,6 +147,7 @@ pub enum Stmt {
     Error(Expr),
 
     Let {
+        vis: Vis,
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
@@ -139,6 +155,7 @@ pub enum Stmt {
     },
 
     Immut {
+        vis: Vis,
         name: String,
         tp: Option<Types>,
         value: Option<Expr>,
@@ -168,6 +185,7 @@ pub enum Stmt {
     },
 
     Fun {
+        vis: Vis,
         rt_tp: Option<Types>,
         name: String,
         params: Vec<(String, Types)>,
@@ -182,6 +200,7 @@ pub enum Stmt {
     },
 
     Struct {
+        vis: Vis,
         name: String,
         fields: Vec<StructField>,
         methods: Vec<StructMethod>,
