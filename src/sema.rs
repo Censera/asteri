@@ -748,17 +748,39 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
     if exp == got {
         return true;
     }
+    let same_name = |a: &Types, b: &Types| -> bool {
+        match (a, b) {
+            (Types::Named(na), Types::Named(nb)) => na == nb,
+            (Types::StructInst(na), Types::StructInst(nb)) => na == nb,
+            (Types::Named(na), Types::StructInst(nb)) => na == nb,
+            (Types::StructInst(na), Types::Named(nb)) => na == nb,
+            _ => false,
+        }
+    };
 
-    if matches!(got, Types::Non)
-        && matches!(exp, Types::OptionPointer { .. }) {
+    if same_name(exp, got) {
+        return true;
+    }
+
+    if matches!(got, Types::Non) && matches!(exp, Types::OptionPointer { .. }) {
+        return true;
+    }
+
+    if let (
+        Types::OptionPointer {
+            inner: e,
+            depth: ed,
+        },
+        Types::Pointer {
+            inner: g,
+            depth: gd,
+        },
+    ) = (exp.clone(), got.clone())
+    {
+        if ed == gd && is_compatible(&e, &g) {
             return true;
         }
-
-    if let (Types::OptionPointer { inner: e, depth: ed },
-        Types::Pointer   { inner: g, depth: gd }) = (exp, got)
-        && ed == gd && is_compatible(e, g) {
-            return true;
-        }
+    }
 
     let int_types = [
         Types::I8,
