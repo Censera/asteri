@@ -138,7 +138,7 @@ let complex_lambda = |a, b, c| {
     t2 - 1;
 };
 
-//let result_lambda = add_lambda(10, 20);
+let result_lambda = add_lambda(10, 20);
 
 thunk1 | 42 |
 thunk2 | {

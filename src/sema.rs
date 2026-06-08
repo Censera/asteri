@@ -688,7 +688,18 @@ impl<'a> Sema<'a> {
                 params,
                 return_type,
             }) => (params.clone(), return_type.clone()),
+
+            Some(Symbol::Variable {
+                tp:
+                    Types::Fun {
+                        params,
+                        return_type,
+                    },
+                ..
+            }) => (params.clone(), return_type.clone()),
+
             Some(_) => return Err(self.error(line, format!("'{}' is not a function", name))),
+
             None => return Err(self.error(line, format!("'{}' is undefined", name))),
         };
         if args.len() != params.len() {
