@@ -28,7 +28,7 @@
                 export LLVM_SYS_201_PREFIX="${pkgs.llvmPackages_20.llvm.dev}"
 
                 clear
-                echo -e '\t* asteri'
+                echo -e '\n\t\x1b[1;45m ✱\x1b[0m asteri\n'
                 ${pkgs.tree}/bin/tree --gitignore -C
 
                 exec fish
