@@ -80,6 +80,8 @@ pub enum Vis {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Expr {
+    Non,
+
     Int(i64),
     Bool(bool),
     Float(f64),
@@ -139,6 +141,8 @@ pub enum Expr {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Stmt {
+    Non,
+
     Expr {
         expr: Expr,
         line: usize,

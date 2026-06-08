@@ -181,6 +181,7 @@ impl<'a> Sema<'a> {
 
     fn check_expr(&mut self, expr: &Expr, _line: usize) -> Result<Types, AsteriError> {
         match expr {
+            Expr::Non => Ok(Types::Non),
             Expr::Int(_) => Ok(Types::I64),
             Expr::Float(_) => Ok(Types::F64),
             Expr::Bool(_) => Ok(Types::Bool),
@@ -748,6 +749,11 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
         return true;
     }
 
+    if matches!(got, Types::Non)
+        && matches!(exp, Types::OptionPointer { .. }) {
+            return true;
+        }
+
     if let (Types::OptionPointer { inner: e, depth: ed },
         Types::Pointer   { inner: g, depth: gd }) = (exp, got)
         && ed == gd && is_compatible(e, g) {
@@ -777,6 +783,7 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
 
 fn get_type_name(n: &Types) -> Cow<'static, str> {
     match n {
+        Types::Non => "None".into(),
         Types::I8 => "i8".into(),
         Types::I16 => "i16".into(),
         Types::I32 => "i32".into(),

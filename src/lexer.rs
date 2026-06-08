@@ -122,6 +122,7 @@ impl TextSpan {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Types {
+    Non,
     I8,
     I16,
     I32,
@@ -271,6 +272,7 @@ impl Lexer {
                 "new" => TokenKind::New,
                 "true" => TokenKind::True,
 
+                "None" => TokenKind::Type(Types::Non),
                 "bool" => TokenKind::Type(Types::Bool),
                 "char" => TokenKind::Type(Types::Char),
                 "File" => TokenKind::Type(Types::File),

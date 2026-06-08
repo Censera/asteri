@@ -128,7 +128,8 @@ struct List {
     tail: ?^List
 }
 
-// let empty = new List { head: 0, tail: empty };
+let empty = new List { head: 0, tail: None };
+let one = new List { head: 1, tail: &empty };
 
 let add_lambda = |x, y| x + y;
 let complex_lambda = |a, b, c| {
@@ -136,6 +137,7 @@ let complex_lambda = |a, b, c| {
     let t2 = t1 * c;
     t2 - 1;
 };
+
 //let result_lambda = add_lambda(10, 20);
 
 thunk1 | 42 |

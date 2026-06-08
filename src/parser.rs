@@ -745,6 +745,11 @@ impl<'a> Parser<'a> {
                 Ok(expr)
             }
 
+            TokenKind::Type(Types::Non) => {
+                self.advance();
+                Ok(Expr::Non)
+            }
+
             TokenKind::Type(Types::Unit) => {
                 self.advance();
                 Ok(Expr::Unit)
