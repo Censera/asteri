@@ -13,13 +13,25 @@
         {
             devShells.${system}.default = pkgs.mkShell {
             buildInputs = with pkgs; [
+                llvmPackages_20.llvm
+                libxml2
+                libffi
+                zlib
+                stdenv.cc
+
                 rustc
                 cargo
                 libiconv
             ];
 
             shellHook = ''
-                exec fish -c "clear; echo -e '\t--- asteri* lang ---'; tree --gitignore -C"
+                export LLVM_SYS_201_PREFIX="${pkgs.llvmPackages_20.llvm.dev}"
+
+                clear
+                echo -e '\t* asteri'
+                ${pkgs.tree}/bin/tree --gitignore -C
+
+                exec fish
             '';
             };
         };
