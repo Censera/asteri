@@ -1,5 +1,5 @@
-[ ] Switch from `Vec<char>` to byte-level lexing `(&[u8])`
-[ ] Update `consume_id` to return `&str` slices instead of allocating `Strings`
-[ ] Add a `String` Interner for identifiers to eliminate allocations
-[ ] Replace match `id.as_str()` with a perfect hash `(phf)` or `HashMap` for keywords
+- [ ] Switch from `Vec<char>` to byte-level lexing `(&[u8])`
+- [ ] Update `consume_id` to return `&str` slices instead of allocating `Strings`.
+- [ ] Add a `String` Interner for identifiers to eliminate allocations
+- [ ] Replace match `id.as_str()` with a perfect hash `(phf)` or `HashMap` for keywords
 
