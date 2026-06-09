@@ -85,8 +85,15 @@ pub enum Expr {
     Int(i64),
     Bool(bool),
     Float(f64),
+    Char(char),
     Str(String),
     Unit, // ()
+
+    Cast {
+        expr: Box<Expr>,
+        target: Types,
+        line: usize,
+    },
 
     Id {
         name: String,

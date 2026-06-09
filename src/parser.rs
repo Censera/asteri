@@ -729,6 +729,18 @@ impl<'a> Parser<'a> {
                         line,
                     };
                 }
+
+                TokenKind::Arrow => {
+                    self.advance();
+                    let target = self.expect_type()?;
+                    let line = self.line();
+                    expr = Expr::Cast {
+                        expr: Box::new(expr),
+                        target,
+                        line,
+                    }
+                }
+
                 _ => break,
             }
         }
@@ -738,6 +750,12 @@ impl<'a> Parser<'a> {
     // :9
     fn parse_primary(&mut self) -> Result<Expr, AsteriError> {
         match self.kind() {
+            TokenKind::Char(c) => {
+                let c = *c;
+                self.advance();
+                Ok(Expr::Char(c))
+            }
+
             TokenKind::OpeningRound => {
                 self.advance();
                 let expr = self.parse_expr()?;

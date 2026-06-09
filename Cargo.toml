@@ -1,3 +1,5 @@
+[lints.clippy]
+
 [package]
 name = "asteri"
 version = "0.2.5"
@@ -6,8 +8,8 @@ edition = "2021"
 [dependencies]
 inkwell = { version = "0.9.0", features = ["llvm20-1"] }
 
-# [profile.dev]
-# opt-level = 3
-# lto = "fat"
-# codegen-units = 1
-# debug = false
+[profile.dev]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = false

@@ -182,9 +182,10 @@ impl<'a> Sema<'a> {
     fn check_expr(&mut self, expr: &Expr, _line: usize) -> Result<Types, AsteriError> {
         match expr {
             Expr::Non => Ok(Types::Non),
-            Expr::Int(_) => Ok(Types::I64),
-            Expr::Float(_) => Ok(Types::F64),
+            Expr::Int(_) => Ok(Types::I32),
+            Expr::Float(_) => Ok(Types::F32),
             Expr::Bool(_) => Ok(Types::Bool),
+            Expr::Char(_) => Ok(Types::Char),
             Expr::Str(_) => Ok(Types::Str),
             Expr::Unit => Ok(Types::Unit),
             Expr::FmtStr { .. } => Ok(Types::Str),
@@ -293,6 +294,23 @@ impl<'a> Sema<'a> {
                     return_type: Box::new(return_type),
                 })
             }
+
+            Expr::Cast { expr, target, line } => {
+                let src = self.check_expr(expr, *line)?;
+                if is_castable(&src, target) {
+                    Ok(target.clone())
+                } else {
+                    Err(self.error(
+                        *line,
+                        format!(
+                            "cannot cast '{}' to '{}'",
+                            get_type_name(&src),
+                            get_type_name(target)
+                        ),
+                    ))
+                }
+            }
+
             Expr::StructLit { name, fields, line } => {
                 let field_types = self
                     .struct_defs
@@ -883,4 +901,26 @@ fn is_numeric(tp: &Types) -> bool {
             | Types::F32
             | Types::F64
     )
+}
+
+fn is_castable(src: &Types, target: &Types) -> bool {
+    use Types::*;
+
+    match (src, target) {
+        (
+            I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | Char,
+            I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | Char,
+        ) => true,
+
+        (F32, F64) | (F64, F32) => true,
+
+        (I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64, F32 | F64) => true,
+        (F32 | F64, I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64) => true,
+
+        (Pointer { .. }, Pointer { .. }) => true,
+        (Pointer { .. }, OptionPointer { .. }) => true,
+        (OptionPointer { .. }, Pointer { .. }) => true,
+
+        _ => false,
+    }
 }
