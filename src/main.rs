@@ -96,7 +96,7 @@ fn check(args: &[String]) {
     }
 }
 
-fn checking_result() {}
+//fn checking_result() {}
 
 fn time_it(id: &str, time: Duration) {
     println!(

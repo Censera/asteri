@@ -834,73 +834,64 @@ fn is_compatible(exp: &Types, got: &Types) -> bool {
 }
 
 fn get_type_name(n: &Types) -> Cow<'static, str> {
+    use Types::*;
     match n {
-        Types::Non => "None".into(),
-        Types::I8 => "i8".into(),
-        Types::I16 => "i16".into(),
-        Types::I32 => "i32".into(),
-        Types::I64 => "i64".into(),
-        Types::U8 => "u8".into(),
-        Types::U16 => "u16".into(),
-        Types::U32 => "u32".into(),
-        Types::U64 => "u64".into(),
-        Types::F32 => "f32".into(),
-        Types::F64 => "f64".into(),
-        Types::String => "string".into(),
-        Types::Bool => "bool".into(),
-        Types::Char => "char".into(),
-        Types::File => "file".into(),
-        Types::Matrix3x3 => "matrix3x3".into(),
-        Types::Matrix4x4 => "matrix4x4".into(),
-        Types::Vector2 => "vector2".into(),
-        Types::Vector3 => "vector3".into(),
-        Types::Str => "str".into(),
-        Types::Cstr => "cstr".into(),
-        Types::Istr => "istr".into(),
-        Types::Unit => "()".into(),
-        Types::Pointer { .. } => "pointer".into(),
-        Types::OptionPointer { .. } => "optional pointer".into(),
-        Types::Fun { .. } => "function".into(),
-        Types::Named(name) | Types::StructInst(name) => Cow::Owned(name.clone()),
+        Non => "None".into(),
+        I8 => "i8".into(),
+        I16 => "i16".into(),
+        I32 => "i32".into(),
+        I64 => "i64".into(),
+        U8 => "u8".into(),
+        U16 => "u16".into(),
+        U32 => "u32".into(),
+        U64 => "u64".into(),
+        F32 => "f32".into(),
+        F64 => "f64".into(),
+        String => "string".into(),
+        Bool => "bool".into(),
+        Char => "char".into(),
+        File => "file".into(),
+        Matrix3x3 => "matrix3x3".into(),
+        Matrix4x4 => "matrix4x4".into(),
+        Vector2 => "vector2".into(),
+        Vector3 => "vector3".into(),
+        Str => "str".into(),
+        Cstr => "cstr".into(),
+        Istr => "istr".into(),
+        Unit => "()".into(),
+        Pointer { .. } => "pointer".into(),
+        OptionPointer { .. } => "optional pointer".into(),
+        Fun { .. } => "function".into(),
+        Named(name) | StructInst(name) => Cow::Owned(name.clone()),
     }
 }
 
 fn to_op(s: &BinaryOp) -> &'static str {
+    use BinaryOp::*;
     match s {
-        BinaryOp::Add => "+",
-        BinaryOp::BitAnd => "BitAnd",
-        BinaryOp::BitOr => "BitOr",
-        BinaryOp::BitXor => "BitXor",
-        BinaryOp::Div => "/",
-        BinaryOp::Eql => "==",
-        BinaryOp::GreaOr => ">=",
-        BinaryOp::GreaTh => ">",
-        BinaryOp::LessOr => "<=",
-        BinaryOp::LessTh => "<",
-        BinaryOp::LogicAnd => "&&",
-        BinaryOp::LogicOr => "||",
-        BinaryOp::Mul => "*",
-        BinaryOp::Neq => "!=",
-        BinaryOp::ShiftLeft => "<<",
-        BinaryOp::ShiftRight => ">>",
-        BinaryOp::Sub => "-",
+        Add => "+",
+        BitAnd => "BitAnd",
+        BitOr => "BitOr",
+        BitXor => "BitXor",
+        Div => "/",
+        Eql => "==",
+        GreaOr => ">=",
+        GreaTh => ">",
+        LessOr => "<=",
+        LessTh => "<",
+        LogicAnd => "&&",
+        LogicOr => "||",
+        Mul => "*",
+        Neq => "!=",
+        ShiftLeft => "<<",
+        ShiftRight => ">>",
+        Sub => "-",
     }
 }
 
 fn is_numeric(tp: &Types) -> bool {
-    matches!(
-        tp,
-        Types::I8
-            | Types::I16
-            | Types::I32
-            | Types::I64
-            | Types::U8
-            | Types::U16
-            | Types::U32
-            | Types::U64
-            | Types::F32
-            | Types::F64
-    )
+    use Types::*;
+    matches!(tp, I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64)
 }
 
 fn is_castable(src: &Types, target: &Types) -> bool {
