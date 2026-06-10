@@ -1,0 +1,4 @@
+fn main() {
+    let s: str = "This is a str";
+    print s;
+}
