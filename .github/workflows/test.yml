@@ -3,7 +3,7 @@ name: test
 on: [push, pull_request]
 
 jobs:
-test:
+  test:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -14,25 +14,25 @@ test:
 
       - name: Install LLVM (Linux)
         if: runner.os == 'Linux'
-        env:
-          LLVM_SYS_201_PREFIX: /usr/lib/llvm-20
-          LLVM_LINK_SHARED: "1"
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-20-dev lld-20 clang-20
           echo "LLVM_SYS_201_PREFIX=/usr/lib/llvm-20" >> $GITHUB_ENV
+          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
       - name: Install LLVM (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install llvm@20
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
+          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
       - name: Install LLVM (Windows)
         if: runner.os == 'Windows'
         run: |
           choco install llvm --version=20.1.0 -y
           echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $GITHUB_ENV
+          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
       - run: cargo build
       - run: cargo test
