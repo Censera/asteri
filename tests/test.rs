@@ -13,7 +13,7 @@ fn return_13() {
 
 #[test]
 fn cast_int_to_int() {
-    std::fs::write(
+    write(
         "tests/cast_int.ast",
         "fn: i32 main() {\n    let x: i64 = 42;\n    rt x -> i32;\n}\n",
     )
@@ -23,7 +23,7 @@ fn cast_int_to_int() {
 
 #[test]
 fn cast_float_to_int() {
-    std::fs::write(
+    write(
         "tests/cast_float.ast",
         "fn: i32 main() {\n    let x: f64 = 3.14;\n    rt x -> i32;\n}\n",
     )
@@ -33,7 +33,7 @@ fn cast_float_to_int() {
 
 #[test]
 fn cast_int_to_float() {
-    std::fs::write(
+    write(
         "tests/cast_float2.ast",
         "fn: i32 main() {\n    let x: i32 = 42;\n    let y: f64 = x -> f64;\n    rt y -> i32;\n}\n",
     )
@@ -43,7 +43,7 @@ fn cast_int_to_float() {
 
 #[test]
 fn cast_int_extend() {
-    std::fs::write(
+    write(
         "tests/cast_ext.ast",
         "fn: i64 main() {\n    let x: i32 = 42;\n    rt x -> i64;\n}\n",
     )
@@ -53,7 +53,7 @@ fn cast_int_extend() {
 
 #[test]
 fn cast_int_truncate() {
-    std::fs::write(
+    write(
         "tests/cast_trunc.ast",
         "fn: i32 main() {\n    let x: i64 = 256;\n    rt x -> i8 -> i32;\n}\n",
     )
