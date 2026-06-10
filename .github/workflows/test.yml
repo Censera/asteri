@@ -27,14 +27,13 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-      - name: Windows
+      - name: Install LLVM (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          $llvm_url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/clang+llvm-20.1.0-x86_64-pc-windows-msvc.tar.xz"
-          curl -L $llvm_url -o $env:TEMP\llvm.tar.xz
-          7z x $env:TEMP\llvm.tar.xz -o$env:TEMP\llvm -y
-          7z x $env:TEMP\llvm\*.tar -o"C:\Program Files\LLVM" -y
+          $installer = "$env:TEMP\LLVM-20.1.0-win64.exe"
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/LLVM-20.1.0-win64.exe" -OutFile $installer
+          Start-Process -FilePath $installer -Args "/S" -Wait -NoNewWindow
           echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $env:GITHUB_ENV
 
