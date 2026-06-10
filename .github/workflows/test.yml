@@ -31,11 +31,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           choco install llvm --version=20.1.8 -y
-          echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
-          echo "LLVM_LINK_SHARED=1" >> $env:GITHUB_ENV
+          Get-ChildItem "C:\Program Files\LLVM" -Recurse -Filter llvm-config.exe
+          & "C:\Program Files\LLVM\bin\llvm-config.exe" --version
 
       - run: cargo build
       - run: cargo test
-
-      - name: test asteri
-        run: cargo test --verbose
