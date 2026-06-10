@@ -1,4 +1,4 @@
-# asteri*
+<h1><img src="res/latest.png" width="64" align="center"> <span>asteri*</span></h1>
 A compiled, statically typed DSL for game development.
 
 ## Requirements
