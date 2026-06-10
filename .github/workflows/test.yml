@@ -30,7 +30,6 @@ jobs:
       - name: Install LLVM (Windows)
         if: runner.os == 'Windows'
         run: |
-          choco install llvm --version=20.1.0 -y
           echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
