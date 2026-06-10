@@ -15,17 +15,17 @@ fn return_13() {
 fn cast_int_to_int() {
     write(
         "tests/cast_int.ast",
-        "fn: i32 main() {\n    let x: i64 = 42;\n    rt x -> i32;\n}\n",
+        "fn: int main() {\n    let x: i8 = 7;\n    return x -> i32; // int <-> i32\n}\n",
     )
     .unwrap();
-    test("cast_int", 42);
+    test("cast_int", 7);
 }
 
 #[test]
 fn cast_float_to_int() {
     write(
         "tests/cast_float.ast",
-        "fn: i32 main() {\n    let x: f64 = 3.14;\n    rt x -> i32;\n}\n",
+        "fn: i32 main() {\n    let x: f64 = 3.14;\n    return x -> i32;\n}\n",
     )
     .unwrap();
     test("cast_float", 3);
@@ -35,7 +35,7 @@ fn cast_float_to_int() {
 fn cast_int_to_float() {
     write(
         "tests/cast_float2.ast",
-        "fn: i32 main() {\n    let x: i32 = 42;\n    let y: f64 = x -> f64;\n    rt y -> i32;\n}\n",
+        "fn: i32 main() {\n    let x: i32 = 42;\n    let y: f64 = x -> f64;\n    return y -> i32;\n}\n",
     )
     .unwrap();
     test("cast_float2", 42);
@@ -45,7 +45,7 @@ fn cast_int_to_float() {
 fn cast_int_extend() {
     write(
         "tests/cast_ext.ast",
-        "fn: i64 main() {\n    let x: i32 = 42;\n    rt x -> i64;\n}\n",
+        "fn: i64 main() {\n    let x: i32 = 42;\n    return x -> i64;\n}\n",
     )
     .unwrap();
     test("cast_ext", 42);
@@ -55,7 +55,7 @@ fn cast_int_extend() {
 fn cast_int_truncate() {
     write(
         "tests/cast_trunc.ast",
-        "fn: i32 main() {\n    let x: i64 = 256;\n    rt x -> i8 -> i32;\n}\n",
+        "fn: i32 main() {\n    let x: i64 = 256;\n    return x -> i8 -> i32;\n}\n",
     )
     .unwrap();
     test("cast_trunc", 0);

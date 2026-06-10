@@ -1,4 +1,4 @@
 fn: i32 main() {
     let x: f64 = 3.14;
-    rt x -> i32;
+    return x -> i32;
 }

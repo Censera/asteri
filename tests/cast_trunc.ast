@@ -1,4 +1,4 @@
 fn: i32 main() {
     let x: i64 = 256;
-    rt x -> i8 -> i32;
+    return x -> i8 -> i32;
 }

@@ -1,5 +1,5 @@
 fn: i32 main() {
     let x: i32 = 42;
     let y: f64 = x -> f64;
-    rt y -> i32;
+    return y -> i32;
 }
