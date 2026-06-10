@@ -15,8 +15,9 @@
 | Ubuntu/Debian | `sudo apt install llvm-20-dev lld-20 clang-20` |
 | macOS | `brew install llvm@20` |
 | Windows | `choco install llvm --version=20.1.0` |
-| NixOS | `nix-shell -p llvm_20 lld` or use `nix dev` for flake.nix |
+| NixOS | `nix-shell -p llvm_20 lld` or use `nix dev` for [flake.nix](/flake.nix) |
 | Arch | `sudo pacman -S llvm20 lld` |
 | Fedora | `sudo dnf install llvm20-devel lld20` |
 
-set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
+> [!IMPORTANT]
+> set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
