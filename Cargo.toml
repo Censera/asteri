@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 inkwell = { version = "0.9.0", features = ["llvm20-1"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+llvm-sys = { version = "201", features = ["prefer-dynamic"] }
+
 [profile.dev]
 opt-level = 3
 lto = "fat"
