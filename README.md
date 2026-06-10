@@ -1,3 +1,6 @@
+# asteri*
+A compiled, statically typed programming language
+
 ## Requirements
 
 ### To compile asteri*
