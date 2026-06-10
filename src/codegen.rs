@@ -149,6 +149,20 @@ impl<'ctx> Codegen<'ctx> {
                 for s in body {
                     self.cmpl_stmt(s)?;
                 }
+
+                let current_block = self.builder.get_insert_block();
+                if let Some(block) = current_block {
+                    if block.get_terminator().is_none() {
+                        if name == "main" {
+                            let zero = self.context.i32_type().const_int(0, false);
+                            let rt_v = BasicValueEnum::IntValue(zero);
+                            self.builder.build_return(Some(&rt_v)).map_err(map_err)?;
+                        } else {
+                            self.builder.build_return(None).map_err(map_err)?;
+                        }
+                    }
+                }
+
                 Ok(())
             }
             _ => Err(format!("unimplemented statement {:?}", stmt)),

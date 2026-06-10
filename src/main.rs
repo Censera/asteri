@@ -16,82 +16,164 @@ fn main() {
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
-        eprintln!("issue");
+        usage();
         exit(1);
     }
 
     let cmd = &args[1];
 
     match cmd.as_str() {
-        "run" => run(&args, true),
-        "build" => run(&args, false),
+        "run" => run(&args),
+        "build" => build(&args),
         "check" => check(&args),
         "version" => println!("?"),
-        c => {
-            eprintln!("error: '{}' is not a command", c);
+        _ => {
+            eprintln!("error: '{}' is not a command", cmd);
+            usage();
             exit(1);
         }
     }
 }
 
-fn get_file(args: &[String]) -> &str {
-    args.get(2).unwrap_or_else(|| {
-        eprintln!("error: no input files");
-        exit(1);
-    })
+fn usage() {
+    eprintln!("\n\t\x1b[1;45m ✱\x1b[0m asteri\n");
 }
 
-fn run(args: &[String], exec: bool) {
+fn flags(args: &[String]) -> (Option<String>, Option<String>, Vec<String>) {
+    let mut output = None;
+    let mut name = None;
+    let mut i = 2;
+
+    while i < args.len() {
+        match args[i].as_str() {
+            "-o" | "--output" => {
+                i += 1;
+                if i < args.len() {
+                    output = Some(args[i].clone());
+                }
+            }
+            "-n" | "--name" => {
+                i += 1;
+                if i < args.len() {
+                    name = Some(args[i].clone());
+                }
+            }
+            arg if !arg.starts_with('-') => break,
+            _ => {}
+        }
+        i += 1;
+    }
+    let files: Vec<String> = args[i..].to_vec();
+
+    (output, name, files)
+}
+
+fn build(args: &[String]) {
     let timer = Instant::now();
-    let file = get_file(args);
-    let input = read_to_string(file).unwrap_or_else(|e| {
-        eprintln!("error reading '{}': {}", file, e);
+    let (output, name, files) = flags(args);
+    let file = files.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("error: no input file");
         exit(1);
     });
+    let mod_name = name.as_deref().unwrap_or("main");
+    let input = read_file(file);
 
-    let stmts = match pipe::run_pipe_that_runs_lex_then_parse_then_analyze_then_ok(&input) {
-        Ok(s) => s,
-        Err((errors, warnings, info)) => {
-            error::report_and_check(errors, warnings, info);
-            exit(1)
-        }
-    };
-
+    let stmts = compile(&input);
     let context = Context::create();
-    let mut codegen = codegen::Codegen::new(&context, "main");
+    let mut codegen = codegen::Codegen::new(&context, mod_name);
+
     if let Err(e) = codegen.compile(&stmts) {
         eprintln!("code gen error: {}", e);
         exit(1);
     }
 
-    let output = file.replace(".ast", ".ll");
-    codegen.module.print_to_file(&output).unwrap();
-
-    if exec {
-        let status = Command::new("lli")
-            .args([output])
-            .status()
-            .expect("failed to run lli");
-        time_it("Runner", timer.elapsed());
-        exit(status.code().unwrap_or(1));
+    let output_path = output.unwrap_or_else(|| file.replace(".ast", ".ll"));
+    let output_path = if std::path::Path::new(&output_path).is_dir() {
+        format!(
+            "{}/{}",
+            output_path,
+            file.replace(".ast", ".ll").rsplit('/').next().unwrap()
+        )
     } else {
-        time_it("Builder", timer.elapsed());
+        output_path
+    };
+
+    codegen.module.print_to_file(&output_path).unwrap();
+    time_it("Builder", timer.elapsed());
+}
+
+fn run(args: &[String]) {
+    let timer = Instant::now();
+    let (output, name, files) = flags(args);
+    let file = files.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("error: no input file");
+        exit(1);
+    });
+    let mod_name = name.as_deref().unwrap_or("main");
+    let input = read_file(file);
+
+    let stmts = compile(&input);
+    let context = Context::create();
+    let mut codegen = codegen::Codegen::new(&context, mod_name);
+
+    if let Err(e) = codegen.compile(&stmts) {
+        eprintln!("code gen error: {}", e);
+        exit(1);
     }
+
+    let output_path = output.unwrap_or_else(|| file.replace(".ast", ".ll"));
+    let output_path = if std::path::Path::new(&output_path).is_dir() {
+        format!(
+            "{}/{}",
+            output_path,
+            file.replace(".ast", ".ll").rsplit('/').next().unwrap()
+        )
+    } else {
+        output_path
+    };
+
+    codegen.module.print_to_file(&output_path).unwrap();
+    time_it("Builder", timer.elapsed());
+
+    let status = Command::new("lli")
+        .arg(&output_path)
+        .status()
+        .expect("failed to run lli");
+    exit(status.code().unwrap_or(1));
 }
 
 fn check(args: &[String]) {
     let timer = Instant::now();
-    let file = get_file(args);
+    let file = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("error: no input file");
+        exit(1);
+    });
     let input = read_to_string(file).unwrap_or_else(|e| {
         eprintln!("error reading '{}': {}", file, e);
         exit(1);
     });
-
     match pipe::run_pipe_that_runs_lex_then_parse_then_analyze_then_ok(&input) {
         Ok(_) => time_it("Checker", timer.elapsed()),
         Err((errors, warnings, info)) => {
             error::report_and_check(errors, warnings, info);
             exit(1);
+        }
+    }
+}
+
+fn read_file(path: &str) -> String {
+    read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("error reading '{}': {}", path, e);
+        exit(1);
+    })
+}
+
+fn compile(input: &str) -> Vec<ast::Stmt> {
+    match pipe::run_pipe_that_runs_lex_then_parse_then_analyze_then_ok(&input) {
+        Ok(stmts) => stmts,
+        Err((errors, warnings, info)) => {
+            error::report_and_check(errors, warnings, info);
+            exit(1)
         }
     }
 }
