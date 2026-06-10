@@ -1,5 +1,5 @@
 <h1><img src="https://github.com/Censera/asteri/blob/entry/res/latest.png" width="64" align="center"> <span>asteri*</span></h1>
-A compiled, statically typed DSL for game development.
+A compiled, statically typed DSL for game development. (WIP)
 
 ## Requirements
 
