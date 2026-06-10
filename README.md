@@ -20,4 +20,5 @@
 | Fedora | `sudo dnf install llvm20-devel lld20` |
 
 > [!IMPORTANT]
-> set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
+> Path to LLVM installation: set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
+> Link against libLLVM.so/dll instead of static `.a` files: set `LLVM_LINK_SHARED=1` 
