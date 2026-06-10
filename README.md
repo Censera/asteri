@@ -1,6 +1,6 @@
 ## Requirements
 
-### To compile Asteri
+### To compile asteri*
 - Rust 1.80+
 - LLVM 20 (development headers)
 
@@ -15,8 +15,10 @@
 | Ubuntu/Debian | `sudo apt install llvm-20-dev lld-20 clang-20` |
 | macOS | `brew install llvm@20` |
 | Windows | `choco install llvm --version=20.1.0` |
-| NixOS | `nix-shell -p llvm_20 lld` or use `nix dev` for flake.nix |
+| NixOS | `nix-shell -p llvm_20 lld` or use `nix dev` for [flake.nix](/flake.nix) |
 | Arch | `sudo pacman -S llvm20 lld` |
 | Fedora | `sudo dnf install llvm20-devel lld20` |
 
-set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
+> [!IMPORTANT]
+> Path to LLVM installation: set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.
+> Link against libLLVM.so/dll instead of static `.a` files: set `LLVM_LINK_SHARED=1` 
