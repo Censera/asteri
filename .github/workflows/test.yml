@@ -27,22 +27,6 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-      - name: Debug LLVM
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          choco list --local-only llvm
-
-          Get-ChildItem "C:\Program Files" -Directory | Where-Object {$_.Name -like "*LLVM*"}
-
-          if (Test-Path "C:\Program Files\LLVM\bin\llvm-config.exe") {
-            & "C:\Program Files\LLVM\bin\llvm-config.exe" --version
-          } else {
-            Write-Host "llvm-config.exe not found"
-          }
-
-          Write-Host "LLVM_SYS_201_PREFIX=$env:LLVM_SYS_201_PREFIX"
-
       - name: getchild
         if: runner.os == 'Windows'
         shell: powershell
