@@ -43,5 +43,23 @@ jobs:
 
           Write-Host "LLVM_SYS_201_PREFIX=$env:LLVM_SYS_201_PREFIX"
 
+      - name: getchild
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-ChildItem Env: | Sort-Object Name
+      
+      - name: z
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+
+      - name: verify llvm
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          echo $env:LLVM_SYS_201_PREFIX
+
       - run: cargo build
       - run: cargo test
