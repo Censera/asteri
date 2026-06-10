@@ -27,7 +27,7 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-     - name: Windows
+      - name: Windows
         if: runner.os == 'Windows'
         run: |
           $llvm = Get-ChildItem -Path "C:\" -Recurse -Filter "llvm-config.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -38,5 +38,5 @@ jobs:
       - run: cargo build
       - run: cargo test
 
-      - name: test astri
-        run: cargo run -- check tests/return.ast
+      - name: test asteri
+        run: cargo test --verbose
