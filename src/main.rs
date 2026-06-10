@@ -19,8 +19,7 @@ fn main() {
     let args: Vec<String> = args().collect();
 
     if args.len() < 2 {
-        usage();
-        exit(1);
+        feed_error("No command provided. Try: 'astri help'", true);
     }
 
     let cmd = &args[1];
@@ -29,16 +28,13 @@ fn main() {
         "run" => run(&args),
         "build" => build(&args),
         "check" => check(&args),
-        "version" => feed_success("version", "0.2.5"),
+        "dev" => dev(&args),
+        "version" => feed_success("Version", "0.3.0"),
+        "help" => usage(),
         _ => {
-            usage();
-            feed_error(format!("'{}' is not a command", cmd).as_str(), true);
+            feed_error(format!("'{}' is not a valid command.", cmd).as_str(), true);
         }
     }
-}
-
-fn usage() {
-    eprintln!("\n\t\x1b[1;45m ✱\x1b[0m asteri\n");
 }
 
 fn flags(args: &[String]) -> Rtflags {
@@ -54,21 +50,27 @@ fn flags(args: &[String]) -> Rtflags {
                 i += 1;
                 if i < args.len() {
                     output = Some(args[i].clone());
+                } else {
+                    feed_error("Missing argument for option '-o / --output'.", true);
                 }
             }
             "-n" | "--name" => {
                 i += 1;
                 if i < args.len() {
                     name = Some(args[i].clone());
+                } else {
+                    feed_error("Missing argument for option '-n / --name'.", true);
                 }
             }
             "-k" | "--keep" => {
                 keep = true;
             }
-            arg if !arg.starts_with('-') => {
+            arg if arg.starts_with('-') => {
+                feed_error(format!("Unrecognized option '{}'.", arg).as_str(), true);
+            }
+            arg => {
                 files.push(arg.to_string());
             }
-            _ => {}
         }
         i += 1;
     }
@@ -78,30 +80,78 @@ fn flags(args: &[String]) -> Rtflags {
 fn build(args: &[String]) {
     let timer = Instant::now();
     let (binary_path, _) = to_binary(args);
-    time_it("Builder", timer.elapsed());
-    feed_success("Compiled", format!("{}", binary_path).as_str());
+    time_it("Build", timer.elapsed());
+    feed_success("Compiled", format!("~/{}", binary_path).as_str());
 }
 
 fn run(args: &[String]) {
     let timer = Instant::now();
     let (binary_path, _) = to_binary(args);
-    time_it("Runner", timer.elapsed());
-    feed_success("Compiled", format!("{}", binary_path).as_str());
-    let run_status = Command::new(&binary_path)
-        .status()
-        .expect("failed to run binary");
+    time_it("Run", timer.elapsed());
+    feed_success("Compiled", format!("~/{}", binary_path).as_str());
+    let run_status = Command::new(&binary_path).status().unwrap_or_else(|e| {
+        feed_error(
+            format!("Failed to execute binary '{}': {}", binary_path, e).as_str(),
+            true,
+        );
+        unreachable!()
+    });
     exit(run_status.code().unwrap_or(1));
+}
+
+fn dev(args: &[String]) {
+    let timer = Instant::now();
+    let (_, name, files, keep) = flags(args);
+    let file = match files.first() {
+        Some(s) => s.as_str(),
+        None => {
+            feed_error("No input file specified.", true);
+            unreachable!()
+        }
+    };
+    let mod_name = name.as_deref().unwrap_or("main");
+    let input = read_file(file);
+    let stmts = compile(&input);
+
+    let context = Context::create();
+    let mut codegen = codegen::Codegen::new(&context, mod_name);
+    if let Err(e) = codegen.compile(&stmts) {
+        feed_error(format!("LLVM Code Generation failed: {}", e).as_str(), true);
+    }
+
+    let ll_path = file.replace(".ast", ".ll");
+    codegen.module.print_to_file(&ll_path).unwrap();
+    time_it("Compiler", timer.elapsed());
+    feed_success("Iterated", format!("~/{}", ll_path).as_str());
+
+    let status = Command::new("lli")
+        .arg(&ll_path)
+        .status()
+        .expect("Failed to execute target detection command ('cc -dumpmachine'). Ensure Clang/GCC is installed.");
+
+    if !keep {
+        let _ = remove_file(&ll_path);
+    }
+
+    exit(status.code().unwrap_or(1));
 }
 
 fn check(args: &[String]) {
     let timer = Instant::now();
-    let file = args
-        .get(2)
-        .map(|s| s.as_str())
-        .unwrap_or_else(|| "no input file");
-    let input = read_to_string(file).unwrap_or_else(|e| format!("'{}' {}", file, e));
+    let file = match args.get(2) {
+        Some(s) => s.as_str(),
+        None => {
+            feed_error("No input file specified for 'check'.", true);
+            unreachable!()
+        }
+    };
+    let input =
+        read_to_string(file).unwrap_or_else(|e| format!("Failed to read file '{}': {}", file, e));
     match pipe::run_pipe_that_runs_lex_then_parse_then_analyze_then_ok(&input) {
-        Ok(_) => time_it("Checker", timer.elapsed()),
+        Ok(_) => {
+            time_it("Check", timer.elapsed());
+            feed_success("_", "Everthing is OK");
+        }
         Err((errors, warnings, info)) => {
             error::report_and_check(errors, warnings, info);
             exit(1);
@@ -111,20 +161,30 @@ fn check(args: &[String]) {
 
 fn read_file(path: &str) -> String {
     if !path.ends_with(".ast") {
-        feed_error("file format not recognized", true);
+        feed_error(
+            format!(
+                "File '{}' does not have the required '.ast' extension.",
+                path
+            )
+            .as_str(),
+            true,
+        );
     }
     read_to_string(path).unwrap_or_else(|e| {
-        feed_error(format!("'{}' {}", path, e).as_str(), true);
+        feed_error(format!("Failed to open '{}': {}", path, e).as_str(), true);
         unreachable!()
     })
 }
 
 fn to_binary(args: &[String]) -> (String, bool) {
     let (output, name, files, keep) = flags(args);
-    let file = files
-        .first()
-        .map(|s| s.as_str())
-        .unwrap_or_else(|| "no input file");
+    let file = match files.first() {
+        Some(s) => s.as_str(),
+        None => {
+            feed_error("No input file specified.", true);
+            unreachable!()
+        }
+    };
     let mod_name = name.as_deref().unwrap_or("main");
     let input = read_file(file);
 
@@ -132,7 +192,10 @@ fn to_binary(args: &[String]) -> (String, bool) {
     let context = Context::create();
     let mut codegen = codegen::Codegen::new(&context, mod_name);
     if let Err(e) = codegen.compile(&stmts) {
-        feed_error(format!("Code gen failed '{}'", e).as_str(), true);
+        feed_error(
+            format!("LLVM Code Generation failed: {:?}", e).as_str(),
+            true,
+        );
     }
 
     let base_dir = file.rsplit_once('/').map(|(d, _)| d).unwrap_or(".");
@@ -160,19 +223,31 @@ fn to_binary(args: &[String]) -> (String, bool) {
 
     if let Some(parent) = Path::new(&ll_path).parent() {
         create_dir_all(parent).unwrap_or_else(|e| {
-            feed_error(format!("creating output directory '{}'", e).as_str(), true);
+            feed_error(
+                format!("Failed to create output directory hierarchy: {}", e).as_str(),
+                true,
+            );
         });
     }
-    codegen.module.print_to_file(&ll_path).unwrap();
+
+    codegen.module.print_to_file(&ll_path).unwrap_or_else(|e| {
+        feed_error(
+            format!("Failed to write LLVM IR to '{}': {}", ll_path, e).as_str(),
+            true,
+        );
+    });
 
     let trip = String::from_utf8(
         Command::new("cc")
-            .arg("-dumpmachine")
-            .output()
-            .expect("failed to detect target triple")
-            .stdout,
+        .arg("-dumpmachine")
+        .output()
+        .expect("Failed to execute target detection command ('cc -dumpmachine'). Ensure Clang/GCC is installed.")
+        .stdout,
     )
-    .unwrap()
+    .unwrap_or_else(|e| {
+        feed_error(format!("Target triple target validation string was invalid UTF-8: {}", e).as_str(), true);
+        unreachable!()
+    })
     .trim()
     .to_string();
 
@@ -185,9 +260,12 @@ fn to_binary(args: &[String]) -> (String, bool) {
         .arg(&object_path)
         .arg("-filetype=obj")
         .status()
-        .expect("failed to run llc");
+        .expect("Failed to execute 'llc'. Ensure LLVM tools are installed and in your PATH.");
     if !llc_status.success() {
-        feed_error("llc failed", true);
+        feed_error(
+            "LLVM static compiler (llc) failed to emit native object code.",
+            true,
+        );
     }
 
     let cc_status = Command::new("cc")
@@ -195,9 +273,16 @@ fn to_binary(args: &[String]) -> (String, bool) {
         .arg("-o")
         .arg(&binary_path)
         .status()
-        .expect("failed to run cc");
+        .expect("Failed to execute system linker ('cc'). Ensure a C build toolchain is installed.");
     if !cc_status.success() {
-        feed_error("cc linking failed", true);
+        feed_error(
+            format!(
+                "Linker stage (cc) failed to generate executable binary '{}'.",
+                binary_path
+            )
+            .as_str(),
+            true,
+        );
     }
 
     if !keep {
@@ -218,32 +303,77 @@ fn compile(input: &str) -> Vec<ast::Stmt> {
     }
 }
 
-//fn checking_result() {}
+use crate::error::Color;
 
 fn time_it(id: &str, time: Duration) {
+    let measure: String;
+    if time.as_millis() < 100 {
+        measure = format!("{}µs{}", Color::GREEN, Color::RESET)
+    } else {
+        measure = format!("{}ms{}", Color::GREEN, Color::RESET)
+    };
+
     println!(
-        "\x1b[1;92m{:>14}\x1b[0m finished in {}{}",
+        "{}{:>14}{} finished in {} {}",
+        Color::GREEN,
         id,
+        Color::RESET,
         if time.as_millis() < 100 {
             time.as_micros()
         } else {
             time.as_millis()
         },
-        if time.as_millis() < 100 {
-            "\x1b[1;92m µs\x1b[0m"
-        } else {
-            "\x1b[1;92m ms\x1b[0m"
-        },
+        measure.as_str(),
     );
 }
 
 fn feed_success(id: &str, msg: &str) {
-    println!("\x1b[1;92m{:>14}\x1b[0m {}", id, msg);
+    println!(
+        "{}{:>14}{} {}{}{}",
+        Color::GREEN,
+        id,
+        Color::RESET,
+        Color::BOLD,
+        msg,
+        Color::RESET
+    );
 }
 
 fn feed_error(msg: &str, is_exit: bool) {
-    eprintln!(" \x1b[1;41m ERROR \x1b[0m {}", msg);
+    eprintln!(" {} Error {} {}", Color::ERROR, Color::RESET, msg);
     if is_exit {
         exit(1);
     }
+}
+
+fn usage() {
+    eprintln!(
+        "\n\t{} ✱{} asteri {}v0.3.0{}\n",
+        "\x1b[1;45m",
+        Color::RESET,
+        Color::PURPLE,
+        Color::RESET
+    );
+    eprintln!("  {}Usage:{}", Color::GREEN, Color::RESET);
+    eprintln!("  {:>8} {}", "asteri", "<command> [options] <file>");
+    eprintln!("");
+    eprintln!("  {}Commands:{}", Color::GREEN, Color::RESET);
+    eprintln!("  {:>8}\t{}", "run", "Compile and run the program");
+    eprintln!("  {:>8}\t{}", "build", "Build the binary");
+    eprintln!("  {:>8}\t{}", "check", "Lex, parse, and typecheck");
+    eprintln!("  {:>8}\t{}", "dev", "For fast iteration");
+    eprintln!("  {:>8}\t{}", "version", "Show version");
+    eprintln!("  {:>8}\t{}", "help", "Display this message");
+    eprintln!("");
+    eprintln!("  {}Options:{}", Color::GREEN, Color::RESET);
+    eprintln!(
+        "\t{}\t{}",
+        "-o --output <path>", "To specify an output path"
+    );
+    eprintln!(
+        "\t{}\t{}",
+        "-n --name <name>", "For naming the output files"
+    );
+    eprintln!("\t{}\t\t{}", "-k --keep", "Keep .ll and .o");
+    eprintln!("");
 }

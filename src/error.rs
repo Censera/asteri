@@ -5,9 +5,10 @@ impl Color {
     pub const ERROR: &'static str = "\x1b[1;31;41m";
     pub const YELLOW: &'static str = "\x1b[33m";
     pub const WARNING: &'static str = "\x1b[1;30;43m";
-    pub const BLUE: &'static str = "\x1b[34m";
+    pub const BLUE: &'static str = "\x1b[94m";
     pub const INFO: &'static str = "\x1b[1;37;44m";
-    pub const PURPLE: &'static str = "\x1b[1;95m";
+    pub const GREEN: &'static str = "\x1b[1;92m";
+    pub const PURPLE: &'static str = "\x1b[1;35m";
     pub const BOLD: &'static str = "\x1b[1m";
     pub const RESET: &'static str = "\x1b[0m";
 }
@@ -48,13 +49,13 @@ pub fn report_and_check(
     info: Vec<AsteriError>,
 ) -> bool {
     if !errors.is_empty() {
-        report_section("ERROR", Color::ERROR, Color::RED, &errors);
+        report_section("Error", Color::ERROR, Color::RED, &errors);
     }
     if !warnings.is_empty() {
-        report_section("WARNING", Color::WARNING, Color::YELLOW, &warnings);
+        report_section("Warning", Color::WARNING, Color::YELLOW, &warnings);
     }
     if !info.is_empty() {
-        report_section("INFO", Color::INFO, Color::BLUE, &info);
+        report_section("Info", Color::INFO, Color::BLUE, &info);
     }
     !errors.is_empty()
 }
