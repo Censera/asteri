@@ -1,6 +1,6 @@
 ## Requirements
 
-### To compile Asteri
+### To compile asteri*
 - Rust 1.80+
 - LLVM 20 (development headers)
 
