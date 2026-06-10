@@ -247,6 +247,16 @@ fn to_binary(args: &[String]) -> (String, bool) {
 
     let triple = TargetMachine::get_default_triple();
     let target = Target::from_triple(&triple).expect("failed to get target");
+
+    if let Some(parent) = Path::new(&binary_path).parent() {
+        create_dir_all(parent).unwrap_or_else(|e| {
+            feed_error(
+                format!("error creating output directory '{}'", e).as_str(),
+                true,
+            );
+        });
+    }
+
     let target_machine = target
         .create_target_machine(
             &triple,

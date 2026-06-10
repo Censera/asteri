@@ -1,4 +1,0 @@
-fn main() {
-    let hello = "Hello world!";
-    print hello;
-}
