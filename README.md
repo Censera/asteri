@@ -1,5 +1,5 @@
 # asteri*
-A compiled, statically typed programming language
+A compiled, statically typed DSL for game development.
 
 ## Requirements
 
