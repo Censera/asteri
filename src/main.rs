@@ -21,6 +21,14 @@ use inkwell::OptimizationLevel;
 type Rtflags = (Option<String>, Option<String>, Vec<String>, bool);
 
 fn main() {
+    if let Ok(version) = Command::new("llvm-config").arg("--version").output() {
+        let version = String::from_utf8_lossy(&version.stdout);
+        if !version.starts_with("20.") {
+            feed_warning(format!("asteri* requires LLVM 20.x, found {}.", version.trim()).as_str());
+            feed_warning("Install LLVM 20: https://releases.llvm.org/download.html.");
+        }
+    }
+
     let args: Vec<String> = args().collect();
 
     Target::initialize_native(&InitializationConfig::default())
@@ -367,6 +375,10 @@ fn feed_error(msg: &str, is_exit: bool) {
     if is_exit {
         exit(1);
     }
+}
+
+fn feed_warning(msg: &str) {
+    eprintln!(" {} Warning {} {}", Color::WARNING, Color::RESET, msg);
 }
 
 fn usage() {
