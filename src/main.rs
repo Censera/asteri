@@ -6,17 +6,25 @@ mod parser;
 mod pipe;
 mod sema;
 
-use inkwell::context::Context;
 use std::env::*;
 use std::fs::*;
 use std::path::Path;
 use std::process::*;
 use std::time::{Duration, Instant};
 
+use inkwell::context::Context;
+use inkwell::targets::{
+    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
+};
+use inkwell::OptimizationLevel;
+
 type Rtflags = (Option<String>, Option<String>, Vec<String>, bool);
 
 fn main() {
     let args: Vec<String> = args().collect();
+
+    Target::initialize_native(&InitializationConfig::default())
+        .expect("failed to initialize native target");
 
     if args.len() < 2 {
         feed_error("No command provided. Try: 'astri help'", true);
@@ -237,53 +245,24 @@ fn to_binary(args: &[String]) -> (String, bool) {
         );
     });
 
-    let trip = String::from_utf8(
-        Command::new("cc")
-        .arg("-dumpmachine")
-        .output()
-        .expect("Failed to execute target detection command ('cc -dumpmachine'). Ensure Clang/GCC is installed.")
-        .stdout,
-    )
-    .unwrap_or_else(|e| {
-        feed_error(format!("Target triple target validation string was invalid UTF-8: {}", e).as_str(), true);
-        unreachable!()
-    })
-    .trim()
-    .to_string();
+    let triple = TargetMachine::get_default_triple();
+    let target = Target::from_triple(&triple).expect("failed to get target");
+    let target_machine = target
+        .create_target_machine(
+            &triple,
+            "generic",
+            "",
+            OptimizationLevel::Default,
+            RelocMode::PIC,
+            CodeModel::Default,
+        )
+        .expect("failed to create target machine");
 
-    let llc_status = Command::new("llc")
-        .arg("-mtriple")
-        .arg(&trip)
-        .arg("-relocation-model=pic")
-        .arg(&ll_path)
-        .arg("-o")
-        .arg(&object_path)
-        .arg("-filetype=obj")
-        .status()
-        .expect("Failed to execute 'llc'. Ensure LLVM tools are installed and in your PATH.");
-    if !llc_status.success() {
-        feed_error(
-            "LLVM static compiler (llc) failed to emit native object code.",
-            true,
-        );
-    }
+    target_machine
+        .write_to_file(&codegen.module, FileType::Object, Path::new(&object_path))
+        .expect("failed to write object file");
 
-    let cc_status = Command::new("cc")
-        .arg(&object_path)
-        .arg("-o")
-        .arg(&binary_path)
-        .status()
-        .expect("Failed to execute system linker ('cc'). Ensure a C build toolchain is installed.");
-    if !cc_status.success() {
-        feed_error(
-            format!(
-                "Linker stage (cc) failed to generate executable binary '{}'.",
-                binary_path
-            )
-            .as_str(),
-            true,
-        );
-    }
+    link_object(&object_path, &binary_path);
 
     if !keep {
         let _ = remove_file(&ll_path);
@@ -303,6 +282,40 @@ fn compile(input: &str) -> Vec<ast::Stmt> {
     }
 }
 
+fn link_object(o: &str, b: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        for linker in &["lld-link", "link.exe"] {
+            let out = format!("/OUT:{}", b);
+            if Command::new(linker)
+                .args([&format!("/OUT:{}", b), o])
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+            {
+                return;
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        for linker in &["ld.lld", "lld", "cc"] {
+            if Command::new(linker)
+                .args([o, "-o", b])
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+            {
+                return;
+            }
+        }
+    }
+
+    feed_error("linking failed: no linker found", true);
+}
+
+// -----------------
 use crate::error::Color;
 
 fn time_it(id: &str, time: Duration) {
