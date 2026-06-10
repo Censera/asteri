@@ -15,7 +15,7 @@ llvm-sys = { version = "201", features = ["prefer-dynamic"] }
 opt-level = 3
 lto = "fat"
 codegen-units = 1
-debug = false
+debug = true
 
 [profile.release]
 opt-level = "z"

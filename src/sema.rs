@@ -580,6 +580,7 @@ impl<'a> Sema<'a> {
         else {
             unreachable!()
         };
+
         self.define(
             name.clone(),
             Symbol::Fun {

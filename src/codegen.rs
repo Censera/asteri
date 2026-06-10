@@ -130,7 +130,7 @@ impl<'ctx> Codegen<'ctx> {
                 body,
                 ..
             } => {
-                let fn_tp = self.fn_tp(rt_tp, params);
+                let fn_tp = self.fn_tp(name, rt_tp, params);
                 let func = self.module.add_function(name, fn_tp, None);
                 let entry = self.context.append_basic_block(func, "entry");
                 self.builder.position_at_end(entry);
@@ -150,13 +150,13 @@ impl<'ctx> Codegen<'ctx> {
                     self.cmpl_stmt(s)?;
                 }
 
-                let current_block = self.builder.get_insert_block();
-                if let Some(block) = current_block {
-                    if block.get_terminator().is_none() {
+                if let Some(last_block) = func.get_last_basic_block() {
+                    if last_block.get_terminator().is_none() {
+                        self.builder.position_at_end(last_block);
                         if name == "main" {
                             let zero = self.context.i32_type().const_int(0, false);
-                            let rt_v = BasicValueEnum::IntValue(zero);
-                            self.builder.build_return(Some(&rt_v)).map_err(map_err)?;
+                            let ret_val = BasicValueEnum::IntValue(zero);
+                            self.builder.build_return(Some(&ret_val)).map_err(map_err)?;
                         } else {
                             self.builder.build_return(None).map_err(map_err)?;
                         }
@@ -267,17 +267,25 @@ impl<'ctx> Codegen<'ctx> {
         Ok(result.into())
     }
 
-    fn fn_tp(&self, rt_tp: &Option<Types>, params: &[(String, Types)]) -> FunctionType<'ctx> {
-        let rt = match rt_tp {
-            Some(tp) => self.llvm_tp(tp),
-            None => self.context.i32_type().into(),
-        };
-
+    fn fn_tp(
+        &self,
+        name: &str,
+        rt_tp: &Option<Types>,
+        params: &[(String, Types)],
+    ) -> FunctionType<'ctx> {
         let param_tps: Vec<BasicMetadataTypeEnum> = params
             .iter()
             .map(|(_, tp)| self.llvm_tp(tp).into())
             .collect();
-        rt.fn_type(&param_tps, false)
+
+        match rt_tp {
+            Some(tp) => {
+                let rt = self.llvm_tp(tp);
+                rt.fn_type(&param_tps, false)
+            }
+            None if name == "main" => self.context.i32_type().fn_type(&param_tps, false),
+            None => self.context.void_type().fn_type(&param_tps, false),
+        }
     }
 
     fn cast_value(
