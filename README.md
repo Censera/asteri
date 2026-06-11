@@ -30,21 +30,35 @@ If asteri is not found:
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-#### Pre-built binary (recommended)
+#### Pre-built binary
 
-Download from [releases](https://github.com/Censera/asteri/releases):
+Download: [releases](https://github.com/Censera/asteri/releases):
+
+Linux:
 
 ```bash
-# Linux
 curl -L https://github.com/Censera/asteri/releases/latest/download/asteri-linux -o asteri
-chmod +x asteri
-./asteri run hello.ast
 ```
 
 ```bash
-# macOS
-curl -L https://github.com/Censera/asteri/releases/latest/download/asteri-macos -o asteri
 chmod +x asteri
+```
+
+```bash
+./asteri run hello.ast
+```
+
+macOS:
+
+```bash
+curl -L https://github.com/Censera/asteri/releases/latest/download/asteri-macos -o asteri
+```
+
+```bash
+chmod +x asteri
+```
+
+```bash
 ./asteri run hello.ast
 ```
 
