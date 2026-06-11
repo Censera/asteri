@@ -1,7 +1,7 @@
 ### List
 
 ```md
-  1. Codegen `Expr::Call` : call functions
+  1. Codegen `Expr::Call`: call functions
   2. Codegen `Stmt::If`: conditionals
   3. Codegen `Stmt::While`/`Stmt::Loop`: loops
   4. Codegen `Stmt::Break`/`Stmt::Continue`: for loops
@@ -16,7 +16,7 @@
  13. Codegen `Expr::Non`: `None` literal
  14. Codegen `Stmt::Thunk`: thunks
  15. Sema `self` in methods
- 16. Parser `++` / `--`
+ 16. Parser `++`/`--`
  17. Codegen `Stmt::CBlock`: C interop
  18. Lexer Remove unused keywords
  19. Parser `For` loop
