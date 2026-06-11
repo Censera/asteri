@@ -103,6 +103,13 @@ fn test_exit(name: &str, exit: i32) {
     assert!(status.success());
 
     let output = Command::new(&binary).output().unwrap();
+
+    eprintln!("{}", name);
+    eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    eprintln!("status: {:?}", output.status);
+    eprintln!("code: {:?}", output.status.code());
+
     assert_eq!(output.status.code().unwrap(), exit);
 }
 

@@ -848,7 +848,7 @@ fn get_type_name(n: &Types) -> Cow<'static, str> {
         U64 => "u64".into(),
         F32 => "f32".into(),
         F64 => "f64".into(),
-        String => "string".into(),
+        String => "String".into(),
         Bool => "bool".into(),
         Char => "char".into(),
         File => "file".into(),
@@ -860,9 +860,9 @@ fn get_type_name(n: &Types) -> Cow<'static, str> {
         Cstr => "cstr".into(),
         Istr => "istr".into(),
         Unit => "()".into(),
-        Pointer { .. } => "pointer".into(),
-        OptionPointer { .. } => "optional pointer".into(),
-        Fun { .. } => "function".into(),
+        Pointer { .. } => "Pointer".into(),
+        OptionPointer { .. } => "Optional pointer".into(),
+        Fun { .. } => "Function".into(),
         Named(name) | StructInst(name) => Cow::Owned(name.clone()),
     }
 }

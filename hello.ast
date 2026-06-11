@@ -1,3 +1,4 @@
 fn main() {
-    print "Hello World!";
+    let x: String = "Hello" -> String;
+    print x;
 }

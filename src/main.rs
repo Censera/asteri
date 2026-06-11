@@ -321,7 +321,7 @@ fn link_object(o: &str, b: &str) {
 
     #[cfg(not(target_os = "windows"))]
     {
-        for linker in &["ld.lld", "lld", "cc"] {
+        for linker in &["cc", "ld.lld", "lld"] {
             if Command::new(linker)
                 .args([o, "-o", b])
                 // shhhhsh
