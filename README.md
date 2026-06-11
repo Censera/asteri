@@ -81,7 +81,12 @@ Flag |	Description |
 __For Nix__:
 
 ```asm
+nix flake update github:Censera/asteri
 nix run github:Censera/asteri -- run hello.ast
+```
+
+```asm
+nix run github:Censera/asteri --refresh -- run hello.ast
 ```
 
 __For Windows__:

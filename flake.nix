@@ -27,6 +27,12 @@
                 LLVM_SYS_201_PREFIX = "${pkgs.llvmPackages_20.llvm.dev}";
                 LIBCLANG_PATH = "${pkgs.llvmPackages_20.llvm.lib}/lib";
 
+                preBuild = ''
+                    export LLVM_SYS_201_PREFIX="${pkgs.llvmPackages_20.llvm.dev}"
+                    export LIBCLANG_PATH="${pkgs.llvmPackages_20.llvm.lib}/lib"
+                '';
+
+
                 doCheck = false;
         };
 
