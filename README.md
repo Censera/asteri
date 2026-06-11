@@ -18,6 +18,36 @@ See: [Requirements](#requirements)
 cargo install --git https://github.com/Censera/asteri
 ```
 
+Then:
+
+```bash
+asteri run hello.ast
+```
+
+If asteri is not found:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+#### Pre-built binary (recommended)
+
+Download from [releases](https://github.com/Censera/asteri/releases):
+
+```bash
+# Linux
+curl -L https://github.com/Censera/asteri/releases/latest/download/asteri-linux -o asteri
+chmod +x asteri
+./asteri run hello.ast
+```
+
+```bash
+# macOS
+curl -L https://github.com/Censera/asteri/releases/latest/download/asteri-macos -o asteri
+chmod +x asteri
+./asteri run hello.ast
+```
+
 ### Hello, World!
 
 1. Create `hello.ast`:
@@ -97,10 +127,10 @@ __Help__
 
 | OS | Command |
 |----|---------|
-| Ubuntu/Debian | `sudo apt install llvm-20-dev lld-20 clang-20` |
+| Ubuntu/Debian | `sudo apt install llvm-20-dev lld-20 clang-20 libllvm20` |
 | macOS | `brew install llvm@20` |
-| Arch | `sudo pacman -S llvm20 lld` |
-| Fedora | `sudo dnf install llvm20-devel lld20` |
+| Arch | `sudo pacman -S llvm20 lld20` |
+| Fedora | `sudo dnf install llvm20-devel lld20 clang20 llvm20-libs` |
 
 #### For Nix:
 
