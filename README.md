@@ -12,7 +12,7 @@ A compiled, statically typed DSL for game development. (WIP)
 
 ### Install asteri*
 
-```asm
+```bash
 cargo install --git https://github.com/Censera/asteri
 ```
 
@@ -28,13 +28,13 @@ fn main() {
 
 2. Compile and run:
 
-```asm
+```bash
 ./asteri run hello.ast
 ```
 
 3. Output:
 
-```asm
+```bash
 Hello, world!
 ```
 
@@ -80,12 +80,12 @@ Flag |	Description |
 
 #### For Nix:
 
-```asm
+```nix
 nix flake update github:Censera/asteri
 nix run github:Censera/asteri -- run hello.ast
 ```
 
-```asm
+```nix
 nix run github:Censera/asteri --refresh -- run hello.ast
 ```
 
@@ -93,13 +93,13 @@ __If flake fails__:
 
 Update your flake inputs
 
-```asm
+```nix
 nix flake update --flake github:Censera/asteri
 ```
 
 Or use the dev shell instead
 
-```asm
+```nix
 nix develop github:Censera/asteri
 cargo run -- run hello.ast
 ```
@@ -112,19 +112,19 @@ cargo run -- run hello.ast
    - Run the installer, check "Add LLVM to the system PATH"
 3. __Verify installation__:
 
-```asm
+```bash
 llvm-config --version
 ```
 
 5. __Build__:
 
-```asm
+```bash
 cargo build
 ```
 
 6. __If `llvm-config` is not found, set the environment variable manually__:
 
-```asm
+```bash
 $env:LLVM_SYS_201_PREFIX = "C:\Program Files\LLVM"
 ```
 
