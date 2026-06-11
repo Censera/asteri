@@ -4,6 +4,12 @@
 name = "asteri"
 version = "0.3.0"
 edition = "2021"
+description = "A compiled, statically typed DSL for game development."
+repository = "https://github.com/Censera/asteri"
+readme = "README.md"
+license = "MIT"
+keywords = ["compiler", "language", "llvm"]
+categories = ["command-line-utilities", "development-tools::compilers"]
 
 [dependencies]
 inkwell = { version = "0.9.0", features = ["llvm20-1"] }
