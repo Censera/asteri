@@ -32,6 +32,9 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
+      - name: Build
+        run: cargo build --release
+
       - name: Rename bin for macOS
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
@@ -40,9 +43,6 @@ jobs:
             mv target/release/asteri asteri-linux
           fi
         shell: bash
-
-      - name: Build
-        run: cargo build --release
 
       - name: Release
         uses: softprops/action-gh-release@v1
