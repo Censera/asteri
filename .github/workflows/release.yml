@@ -13,39 +13,39 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-      steps:
-        - uses: actions/checkout@v4
-        - uses: dtolnay/rust-toolchain@stable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-        - name: Install LLVM (Linux)
-          if: runner.os == 'Linux'
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y llvm-20-dev lld-20 clang-20 libllvm20
-            echo "LLVM_SYS_201_PREFIX=/usr/lib/llvm-20" >> $GITHUB_ENV
+      - name: Install LLVM (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-20-dev lld-20 clang-20 libllvm20
+          echo "LLVM_SYS_201_PREFIX=/usr/lib/llvm-20" >> $GITHUB_ENV
 
-        - name: Install LLVM (macOS)
-          if: runner.os == 'macOS'
-          run: |
-            brew install llvm@20
-            echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
+      - name: Install LLVM (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm@20
+          echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
 
-        - name: Build
-          run: cargo build --release
+      - name: Build
+        run: cargo build --release
 
-        - name: Rename
-          run: |
-            if [ "${{ runner.os }}" = "macOS" ]; then
-              mv target/release/asteri asteri-macos
-            else
-              mv target/release/asteri asteri-linux
-            fi
-          shell: bash
+      - name: Rename
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            mv target/release/asteri asteri-macos
+          else
+            mv target/release/asteri asteri-linux
+          fi
+        shell: bash
 
-        - name: Release
-          uses: softprops/action-gh-release@v1
-          with:
-            files: |
-              asteri-linux
-              asteri-macos
-            fail_on_unmatched_files: false
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            asteri-linux
+            asteri-macos
+          fail_on_unmatched_files: false
