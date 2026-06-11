@@ -61,7 +61,6 @@ Flag |	Description |
 __Help__
 
 ```r
-<<<<<<< HEAD
             asteri* v0.3.0
 
     Usage:
@@ -79,25 +78,6 @@ __Help__
         -o --output <path>      To specify an output path
         -n --name <name>        For naming the output files
         -k --keep               Keep .ll and .o
-=======
-	 asteri* v0.3.0
-
-  Usage:
-    asteri <command> [options] <file>
-
-  Commands:
-       run    Compile and run the program
-     build    Build the binary
-     check    Typecheck
-       dev    For fast iteration
-   version    Show version
-      help    Display this message
-
-  Options:
-	-o --output <path>    To specify an output path
-	-n --name <name>      For naming the output files
-	-k --keep		      Keep .ll and .o
->>>>>>> 201b53ed39e40ddbafc12cc0f208295c7ace560a
 ```
 
 ## Requirements
