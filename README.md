@@ -1,4 +1,4 @@
-<h1><img src="https://github.com/Censera/asteri/blob/entry/res/latest.svg" width="64" align="center"> <span>asteri*</span></h1>
+<h1><img src="res/latest.svg" width="64" align="center"> <span>asteri*</span></h1>
 
 A compiled, statically typed DSL for game development. (WIP)
 
@@ -58,6 +58,28 @@ Flag |	Description |
 | `-n --name <name>`	| Module/binary name |
 | `-k, --keep`	| Keep intermediate files |
 
+__Help__
+
+```r
+            asteri* v0.3.0
+
+    Usage:
+        asteri <command> [options] <file>
+
+    Commands:
+        run         Compile and run the program
+        build       Build the binary
+        check       Typecheck
+        dev         For fast iteration
+        version     Show version
+        help        Display this message
+
+    Options:
+        -o --output <path>      To specify an output path
+        -n --name <name>        For naming the output files
+        -k --keep               Keep .ll and .o
+```
+
 ## Requirements
 
 ### To compile asteri*
@@ -110,8 +132,8 @@ cargo run -- run hello.ast
 
 1. __Install Rust__: [`rustup`](https://rustup.rs)
 2. __Install LLVM 20 from the official installer__:
-   - Download [`LLVM-20.1.0-win64.exe`](https://github.com/llvm/llvm-project/releases/tag/llvmorg-20.1.0)
-   - Run the installer, check "Add LLVM to the system PATH"
+    - Download [`LLVM-20.1.0-win64.exe`](https://github.com/llvm/llvm-project/releases/tag/llvmorg-20.1.0)
+    - Run the installer, check "Add LLVM to the system PATH"
 3. __Verify installation__:
 
 ```bash
