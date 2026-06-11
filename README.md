@@ -78,7 +78,7 @@ Flag |	Description |
 | Arch | `sudo pacman -S llvm20 lld` |
 | Fedora | `sudo dnf install llvm20-devel lld20` |
 
-__For Nix__:
+#### For Nix:
 
 ```asm
 nix flake update github:Censera/asteri
@@ -89,7 +89,22 @@ nix run github:Censera/asteri -- run hello.ast
 nix run github:Censera/asteri --refresh -- run hello.ast
 ```
 
-__For Windows__:
+__If flake fails__:
+
+Update your flake inputs
+
+```asm
+nix flake update --flake github:Censera/asteri
+```
+
+Or use the dev shell instead
+
+```asm
+nix develop github:Censera/asteri
+cargo run -- run hello.ast
+```
+
+#### For Windows:
 
 1. __Install Rust__: [`rustup`](https://rustup.rs)
 2. __Install LLVM 20 from the official installer__:

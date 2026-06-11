@@ -48,7 +48,6 @@
                 zlib
                 stdenv.cc
                 libiconv
-                tree
             ];
 
             LLVM_SYS_201_PREFIX = "${pkgs.llvmPackages_20.llvm.dev}";
@@ -57,7 +56,6 @@
             shellHook = ''
                 clear
                 echo -e '\n\t\x1b[1;45m ✱\x1b[0m asteri\n'
-                tree --gitignore -C
         '';
         };
     });
