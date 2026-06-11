@@ -20,20 +20,20 @@
                 pname = "asteri";
                 version = "0.3.0";
                 src = ./.;
-                nativeBuildInputs = with pkgs; [ llvmPackages_20.llvm ];
-                buildInputs = with pkgs; [ llvmPackages_20.llvm llvmPackages_20.lld libffi ];
                 cargoLock.lockFile = ./Cargo.lock;
+                doCheck = false;
 
-                LLVM_SYS_201_PREFIX = "${pkgs.llvmPackages_20.llvm.dev}";
-                LIBCLANG_PATH = "${pkgs.llvmPackages_20.llvm.lib}/lib";
+                nativeBuildInputs = with pkgs; [
+                llvmPackages_20.llvm
+                llvmPackages_20.lld
+                ];
+                buildInputs = with pkgs; [ libffi ];
 
                 preBuild = ''
                     export LLVM_SYS_201_PREFIX="${pkgs.llvmPackages_20.llvm.dev}"
                     export LIBCLANG_PATH="${pkgs.llvmPackages_20.llvm.lib}/lib"
                 '';
 
-
-                doCheck = false;
         };
 
         devShells.default = pkgs.mkShell {
