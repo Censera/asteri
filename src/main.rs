@@ -301,6 +301,8 @@ fn compile(input: &str) -> Vec<ast::Stmt> {
 }
 
 fn link_object(o: &str, b: &str) {
+    let feed: &str;
+
     #[cfg(target_os = "windows")]
     {
         for linker in &["lld-link", "link.exe"] {
@@ -314,6 +316,7 @@ fn link_object(o: &str, b: &str) {
                 return;
             }
         }
+        feed = "linking failed: no linker (ll-link, link.exe) found";
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -321,6 +324,9 @@ fn link_object(o: &str, b: &str) {
         for linker in &["ld.lld", "lld", "cc"] {
             if Command::new(linker)
                 .args([o, "-o", b])
+                // shhhhsh
+                .stderr(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
                 .status()
                 .map(|s| s.success())
                 .unwrap_or(false)
@@ -328,9 +334,11 @@ fn link_object(o: &str, b: &str) {
                 return;
             }
         }
+
+        feed = "linking failed: no linker (ld.lld, lld, cc) found";
     }
 
-    feed_error("linking failed: no linker found", true);
+    feed_error(feed, true);
 }
 
 // -----------------

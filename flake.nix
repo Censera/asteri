@@ -20,10 +20,14 @@
                 pname = "asteri";
                 version = "0.3.0";
                 src = ./.;
-                nativeBuildInputs = with pkgs; [ llvm_20 ];
-                buildInputs = with pkgs; [ llvm_20 lld_20 ];
-                LLVM_SYS_201_PREFIX = "${pkgs.llvm_20}";
+                nativeBuildInputs = with pkgs; [ llvmPackages_20.llvm ];
+                buildInputs = with pkgs; [ llvmPackages_20.llvm llvmPackages_20.lld libffi ];
                 cargoLock.lockFile = ./Cargo.lock;
+
+                LLVM_SYS_201_PREFIX = "${pkgs.llvmPackages_20.llvm.dev}";
+                LIBCLANG_PATH = "${pkgs.llvmPackages_20.llvm.lib}/lib";
+
+                doCheck = false;
         };
 
         devShells.default = pkgs.mkShell {
@@ -31,8 +35,8 @@
                 (rust-bin.stable.latest.default.override {
                     extensions = [ "rust-src" "rust-analyzer" ];
                 })
-                llvm_20
-                lld_20
+                llvmPackages_20.llvm
+                llvmPackages_20.lld
                 libxml2
                 libffi
                 zlib
@@ -41,13 +45,14 @@
                 tree
             ];
 
-            LLVM_SYS_201_PREFIX = "${pkgs.llvm_20}";
+            LLVM_SYS_201_PREFIX = "${pkgs.llvmPackages_20.llvm.dev}";
+            LIBCLANG_PATH = "${pkgs.llvmPackages_20.llvm.lib}/lib";
 
             shellHook = ''
                 clear
                 echo -e '\n\t\x1b[1;45m ✱\x1b[0m asteri\n'
                 tree --gitignore -C
-            '';
+        '';
         };
     });
 }
