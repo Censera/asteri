@@ -32,14 +32,13 @@ jobs:
       - name: Build
         run: cargo build --release
 
-<<<<<<< HEAD
         - name: Upload to release
           uses: softprops/action-gh-release@v1
           with:
             files: target/release/asteri
-=======
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: target/release/asteri
->>>>>>> 042dd3e980ae97cd478829d2441b0e60464ab661
+
