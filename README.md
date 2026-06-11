@@ -2,6 +2,12 @@
 
 A compiled, statically typed DSL for game development. (WIP)
 
+## Installation
+
+- __[Quick Start](#quick-start)__
+- __[Usage](#usage)__
+- __[Requirements](#requirements)__
+
 ## Quick Start
 
 ### Install asteri*
