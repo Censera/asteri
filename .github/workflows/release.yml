@@ -21,21 +21,36 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-20-dev lld-20 clang-20
+          sudo apt-get install -y llvm-20-dev lld-20 clang-20 libllvm20
           echo "LLVM_SYS_201_PREFIX=/usr/lib/llvm-20" >> $GITHUB_ENV
-          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
       - name: Install LLVM for macOS
         if: runner.os == 'macOS'
         run: |
           brew install llvm@20
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
-          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-      - name: Build
+      - name: Build dynamic
+        run: cargo build --release
+        env:
+          LLVM_LINK_SHARED: "1"
+
+      - name: Rename dynamic binary
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            mv target/release/asteri asteri-macos-dynamic
+          else
+            mv target/release/asteri asteri-linux-dynamic
+          fi
+        shell: bash
+
+      - name: Clean
+        run: cargo clean
+
+      - name: Build static
         run: cargo build --release
 
-      - name: Rename bin for macOS
+      - name: Rename
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             mv target/release/asteri asteri-macos
@@ -44,9 +59,28 @@ jobs:
           fi
         shell: bash
 
+      - name: Check diff
+        run: |
+          if [ -f asteri-linux-dynamic ] && [ -f asteri-linux ]; then
+            if cmp -s asteri-linux asteri-linux-dynamic; then
+              echo "DYNAMIC_SAME_AS_STATIC=true" >> $GITHUB_ENV
+              rm asteri-linux-dynamic
+            fi
+          fi
+          if [ -f asteri-macos-dynamic ] && [ -f asteri-macos ]; then
+            if cmp -s asteri-macos asteri-macos-dynamic; then
+              echo "DYNAMIC_SAME_AS_STATIC=true" >> $GITHUB_ENV
+              rm asteri-macos-dynamic
+            fi
+          fi
+        shell: bash
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             asteri-linux
+            asteri-linux-dynamic
             asteri-macos
+            asteri-macos-dynamic
+          fail_on_unmatched: false
