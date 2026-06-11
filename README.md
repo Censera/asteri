@@ -2,7 +2,7 @@
 
 A compiled, statically typed DSL for game development. (WIP)
 
-## Installation
+## Overview
 
 - __[Quick Start](#quick-start)__
 - __[Usage](#usage)__
@@ -11,6 +11,8 @@ A compiled, statically typed DSL for game development. (WIP)
 ## Quick Start
 
 ### Install asteri*
+
+See: [Requirements](#requirements)
 
 ```bash
 cargo install --git https://github.com/Censera/asteri
