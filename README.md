@@ -200,3 +200,6 @@ $env:LLVM_SYS_201_PREFIX = "C:\Program Files\LLVM"
 > [!TIP]
 > __Path to LLVM installation__: set `LLVM_SYS_201_PREFIX` if LLVM is installed in a non-standard location.  
 > __Link against `libLLVM.so/dll` instead of static `.a` files__: set `LLVM_LINK_SHARED=1`
+
+> [!NOTE]
+> [MIT LICENSE](LICENSE)
