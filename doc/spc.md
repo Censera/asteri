@@ -3,7 +3,8 @@
 A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
 
 > [!NOTE]  
->  _This project is a work in progress, so many of the features displayed here may not exist yet and might never exist depending on what is right for the project._
+>  _This project is a work in progress, so many of the features displayed here may not exist yet and might never exist depending on what is right for the project._  
+> See: __[Progress](prg.md)__
 
 ## Syntax
 
