@@ -4,6 +4,7 @@ A compiled, statically typed DSL for game development. (WIP)
 
 ## Overview
 
+- __Read [Lkonach](doc/spc.md)__
 - __[Quick Start](#quick-start)__
 - __[Usage](#usage)__
 - __[Requirements](#requirements)__
