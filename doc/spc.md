@@ -1,10 +1,13 @@
-# asteri*
+<img src="/res/latest.svg" width="96" align="left">
 
-A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
+__asteri*__ is a domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
 
-> [!NOTE]  
->  _This project is a work in progress, so many of the features displayed here may not exist yet and might never exist depending on what is right for the project._  
-> See: __[Progress](prg.md)__
+ 
+ _This project is a work in progress, so many of the features displayed here may not exist yet and might never exist depending on what is right for the project._  
+ 
+ _Also, this is the general-purpose core of asteri*. Game development features (built-in game loop, graphics bindings, asset pipeline, physics types) are planned but not yet implemented. The language is fully usable for systems programming, scripting, and tooling in the future._
+
+_See: __[Progress](prg.md)___
 
 ## Syntax
 
@@ -16,7 +19,7 @@ fn main() {
 }
 ```
 
-`fn main() { ... } declares` the entry point. `main` takes no parameters and returns nothing by default. It is always the first code that runs.
+`fn main() { ... }` declares the entry point. `main` takes no parameters and returns nothing by default. It is always the first code that runs.
 
 ### Variables
 
@@ -155,8 +158,8 @@ C {
 |`char`|Character|
 |`str`|String slice|
 |`String`|Heap-allocated string|
-|`^T`|Non-null pointer to T|
-|`?^T`|Optional pointer to T|
+|`^T`|Non-null pointer to `T`|
+|`?^T`|Optional pointer to `T`|
 
 ### Aliases
 
@@ -164,19 +167,19 @@ Most keywords have shorter aliases for quick scripting
 
 |keyword| Its short form|
 |----|---|
-|function|ft|
-|return|rt|
-|break|brk|
-|continue|cnt|
-|immutable|immut|
-|structure|struc|
-|enumeration|enum|
-|private|pri|
-|public|pub|
-|int|i32|
-|float|f32|
-|double|f64|
-|boolean|bool|
+|`function`|`fn`|
+|`return`|`rt`|
+|`break`|`brk`|
+|`continue`|`cnt`|
+|`immutable`|`immut`|
+|`structure`|`struct`|
+|`enumeration`|`enum`|
+|`private`|`pri`|
+|`public`|`pub`|
+|`int`|`i32`|
+|`float`|`f32`|
+|`double`|`f64`|
+|`boolean`|`bool`|
 
 For types, both the short and long forms are equivalent:
 
@@ -186,6 +189,3 @@ let y: float = 3.14;   // same as f32
 let z: double = 2.71;  // same as f64
 let flag: bool = true; // same as boolean
 ```
-
-> [!NOTE]
-> _This is the general-purpose core of asteri*. Game development features (built-in game loop, graphics bindings, asset pipeline, physics types) are planned but not yet implemented. The language is fully usable for systems programming, scripting, and tooling in the future._
