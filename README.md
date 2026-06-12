@@ -4,7 +4,7 @@ A compiled, statically typed DSL for game development. (WIP)
 
 ## Overview
 
-- __Read [Lkonach](doc/spc.md)__
+- Read: __[Lkonach](doc/spc.md)__
 - __[Quick Start](#quick-start)__
 - __[Usage](#usage)__
 - __[Requirements](#requirements)__
@@ -13,7 +13,7 @@ A compiled, statically typed DSL for game development. (WIP)
 
 ### Install asteri*
 
-See: [Requirements](#requirements)
+See: __[Requirements](#requirements)__
 
 ```bash
 cargo install --git https://github.com/Censera/asteri
