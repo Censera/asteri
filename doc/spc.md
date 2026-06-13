@@ -9,6 +9,8 @@ __asteri*__ is a domain-specific programming language designed for game developm
 
 _See: __[Progress](prg.md)___
 
+[![RepoRanker](https://reporanker.com/badge/Censera/asteri)](https://reporanker.com/repos/Censera/asteri)
+
 ## Syntax
 
 ### Hello, World
