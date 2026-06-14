@@ -33,10 +33,9 @@ jobs:
 
       - name: Install LLVM (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          choco install llvm --version=20.1.0 -y
-          echo "LLVM_SYS_201_PREFIX=C:\Program Files\LLVM" >> $GITHUB_ENV
-        shell: bash
+        uses: kripod/setup-llvm@v1
+        with:
+          llvm-version: '20'
 
       - name: Build
         run: |
@@ -47,7 +46,7 @@ jobs:
           fi
         shell: bash
 
-      - name: Rename Binaries
+      - name: Rename
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv target/release/asteri.exe asteri-windows-${{ matrix.linkage }}.exe
