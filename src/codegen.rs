@@ -15,7 +15,7 @@ pub struct Codegen<'ctx> {
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
     scopes: Vec<HashMap<String, (PointerValue<'ctx>, BasicTypeEnum<'ctx>)>>,
-    // functions: HashMap<String, (FunctionType<'ctx>, FunctionValue<'ctx>)>,
+    functions: HashMap<String, (FunctionType<'ctx>, FunctionValue<'ctx>)>,
 }
 
 impl<'ctx> Codegen<'ctx> {
@@ -23,13 +23,14 @@ impl<'ctx> Codegen<'ctx> {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
         let scopes = vec![HashMap::new()];
-        // let functions = HashMap::new();
+        let functions = HashMap::new();
 
         Self {
             context,
             module,
             builder,
             scopes,
+            functions,
         }
     }
 
