@@ -27,9 +27,13 @@ jobs:
 
       - name: Windows
         if: matrix.os == 'windows-latest'
-        uses: kripod/setup-llvm@v1
-        with:
-          llvm-version: '20'
+        run: |
+          $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/LLVM-20.1.0-win64.exe"
+          $output = "$env:TEMP\LLVM-Installer.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Start-Process -FilePath $output -ArgumentList "/S /D=C:\LLVM-20" -Wait
+          echo "LLVM_SYS_201_PREFIX=C:\LLVM-20" >> $env:GITHUB_ENV
+        shell: powershell
 
       - name: Run Tests
         run: cargo test --verbose
