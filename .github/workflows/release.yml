@@ -13,12 +13,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         linkage: [static, dynamic]
-        include:
-          - linkage: static
-            no_ffi: "1"
-          - linkage: dynamic
-            no_ffi: "0"
-
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,19 +32,15 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
 
       - name: Build
-        env:
-          LLVM_SYS_no_ffi_libs: ${{ matrix.no_ffi }}
-          CUSTOM_LLVM_FLAGS: ${{ matrix.linkage == 'static' && '--components=core support native target' || '' }}
         run: |
           if [ "${{ matrix.linkage }}" = "dynamic" ]; then
             cargo build --release --features inkwell/llvm20-1,inkwell/prefer-dynamic
           else
-            # We explicitly pass LLVM_CONFIG_FLAGS to override component selection
-            LLVM_CONFIG_FLAGS="$CUSTOM_LLVM_FLAGS" cargo build --release
+            cargo build --release
           fi
         shell: bash
 
-      - name: Rename Binaries
+      - name: Rename
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             mv target/release/asteri asteri-macos-${{ matrix.linkage }}

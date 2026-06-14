@@ -30,3 +30,8 @@ lto = true
 strip = true
 codegen-units = 1
 panic = "abort"
+
+
+[env]
+LLVM_SYS_no_ffi_libs = "1"
+LLVM_CONFIG_FLAGS = "--components=core support native target"
