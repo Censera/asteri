@@ -18,17 +18,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y llvm-20-dev lld-20 clang-20
           echo "LLVM_SYS_201_PREFIX=/usr/lib/llvm-20" >> $GITHUB_ENV
-          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
       - name: macOS
         if: runner.os == 'macOS'
         run: |
           brew install llvm@20
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
-          echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-      - name: Run Tests (Static Link)
-        env:
-          LLVM_SYS_no_ffi_libs: "1"
-        run: |
-          LLVM_CONFIG_FLAGS="--components=core support native target" cargo test --verbose
+      - name: Run Tests
+        run: cargo test --verbose
