@@ -4,6 +4,7 @@
 name = "asteri"
 version = "0.3.0"
 edition = "2021"
+
 description = "A compiled, statically typed DSL for game development."
 repository = "https://github.com/Censera/asteri"
 readme = "README.md"
@@ -14,16 +15,6 @@ categories = ["command-line-utilities", "development-tools::compilers"]
 [dependencies]
 inkwell = { version = "0.9.0", features = ["llvm20-1"] }
 
-# [target.'cfg(target_os = "linux")'.dependencies]
-# llvm-sys = { version = "201", features = ["prefer-dynamic"] }
-
-# isnt needed for me
-# [profile.dev]
-# opt-level = 3
-# lto = "fat"
-# codegen-units = 1
-# debug = true
-
 [profile.release]
 opt-level = "z"
 lto = true
@@ -31,7 +22,6 @@ strip = true
 codegen-units = 1
 panic = "abort"
 
-
 [env]
+LLVM_SYS_no_polly = "1"
 LLVM_SYS_no_ffi_libs = "1"
-LLVM_CONFIG_FLAGS = "--components=core support native target"
