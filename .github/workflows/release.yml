@@ -15,10 +15,8 @@ jobs:
         linkage: [static, dynamic]
         include:
           - linkage: static
-            no_polly: "1"
             no_ffi: "1"
           - linkage: dynamic
-            no_polly: "0"
             no_ffi: "0"
 
     runs-on: ${{ matrix.os }}
@@ -41,21 +39,23 @@ jobs:
 
       - name: Build
         env:
-          LLVM_SYS_no_polly: ${{ matrix.no_polly }}
           LLVM_SYS_no_ffi_libs: ${{ matrix.no_ffi }}
+          CUSTOM_LLVM_FLAGS: ${{ matrix.linkage == 'static' && '--components=core support native target' || '' }}
         run: |
           if [ "${{ matrix.linkage }}" = "dynamic" ]; then
             cargo build --release --features inkwell/llvm20-1,inkwell/prefer-dynamic
           else
-            cargo build --release
+            # We explicitly pass LLVM_CONFIG_FLAGS to override component selection
+            LLVM_CONFIG_FLAGS="$CUSTOM_LLVM_FLAGS" cargo build --release
           fi
+        shell: bash
 
-      - name: Rename bins
+      - name: Rename Binaries
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
-            mv target/release/asteri asteri-macos
+            mv target/release/asteri asteri-macos-${{ matrix.linkage }}
           else
-            mv target/release/asteri asteri-linux
+            mv target/release/asteri asteri-linux-${{ matrix.linkage }}
           fi
         shell: bash
 

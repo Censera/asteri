@@ -27,8 +27,8 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
           echo "LLVM_LINK_SHARED=1" >> $GITHUB_ENV
 
-      - name: Run Tests
+      - name: Run Tests (Static Link)
         env:
-          LLVM_SYS_no_polly: "1"
           LLVM_SYS_no_ffi_libs: "1"
-        run: cargo test --verbose
+        run: |
+          LLVM_CONFIG_FLAGS="--components=core support native target" cargo test --verbose
