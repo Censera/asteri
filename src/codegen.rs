@@ -4,7 +4,9 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType};
-use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
+use inkwell::values::{
+    BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue, PointerValue, ValueKind,
+};
 use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 
@@ -34,30 +36,6 @@ impl<'ctx> Codegen<'ctx> {
         }
     }
 
-    fn push_scope(&mut self) {
-        self.scopes.push(HashMap::new());
-    }
-
-    fn pop_scope(&mut self) {
-        self.scopes.pop().expect("scope stack underflow");
-    }
-
-    fn define_v(&mut self, name: String, variable: (PointerValue<'ctx>, BasicTypeEnum<'ctx>)) {
-        self.scopes
-            .last_mut()
-            .expect("no active scope")
-            .insert(name, variable);
-    }
-
-    fn lookup_v(&self, name: &str) -> Option<&(PointerValue<'ctx>, BasicTypeEnum<'ctx>)> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(v) = scope.get(name) {
-                return Some(v);
-            }
-        }
-        None
-    }
-
     pub fn compile(&mut self, stmts: &[Stmt]) -> Result<(), String> {
         let printf_tp = self.context.i32_type().fn_type(
             &[self.context.ptr_type(AddressSpace::default()).into()],
@@ -65,6 +43,8 @@ impl<'ctx> Codegen<'ctx> {
         );
 
         self.module.add_function("printf", printf_tp, None);
+
+        self.declare_fn(stmts);
 
         for stmt in stmts {
             self.cmpl_stmt(stmt)?
@@ -93,28 +73,12 @@ impl<'ctx> Codegen<'ctx> {
             }
 
             Stmt::Print(expr) => {
-                let printf_fn = self
-                    .module
-                    .get_function("printf")
-                    .ok_or_else(|| "printf not found".to_string())?;
-
-                let v = self.cmpl_expr(expr)?;
-
-                let fmt_str = match v {
-                    BasicValueEnum::IntValue(_) => self
-                        .builder
-                        .build_global_string_ptr("%d\n", "fmt")
-                        .map_err(map_err)?
-                        .as_pointer_value(),
-                    _ => self
-                        .builder
-                        .build_global_string_ptr("%s\n", "fmt")
-                        .map_err(map_err)?
-                        .as_pointer_value(),
-                };
-
+                let (fmt_v, args) = self.prepare_fmt_and_args(expr)?;
+                let printf = self.get_or_create_printf();
+                let mut all_args = vec![fmt_v.into()];
+                all_args.extend(args.into_iter().map(|v| BasicMetadataValueEnum::from(v)));
                 self.builder
-                    .build_call(printf_fn, &[fmt_str.into(), v.into()], "printf")
+                    .build_call(printf, &all_args, "printf")
                     .map_err(map_err)?;
                 Ok(())
             }
@@ -143,20 +107,24 @@ impl<'ctx> Codegen<'ctx> {
 
             Stmt::Fun {
                 name,
-                rt_tp,
+                rt_tp: _,
                 params,
                 body,
                 ..
             } => {
-                let fn_tp = self.fn_tp(name, rt_tp, params);
-                let func = self.module.add_function(name, fn_tp, None);
-                let entry = self.context.append_basic_block(func, "entry");
+                let function = self
+                    .functions
+                    .get(name)
+                    .ok_or_else(|| format!("function '{}' is not declared", name))?
+                    .1;
+
+                let entry = self.context.append_basic_block(function, "entry");
                 self.builder.position_at_end(entry);
 
                 self.push_scope();
 
                 for (i, (p_name, _)) in params.iter().enumerate() {
-                    let param = func.get_nth_param(i as u32).unwrap();
+                    let param = function.get_nth_param(i as u32).unwrap();
                     let alc = self
                         .builder
                         .build_alloca(param.get_type(), p_name)
@@ -169,7 +137,7 @@ impl<'ctx> Codegen<'ctx> {
                     self.cmpl_stmt(s)?;
                 }
 
-                if let Some(last_block) = func.get_last_basic_block() {
+                if let Some(last_block) = function.get_last_basic_block() {
                     if last_block.get_terminator().is_none() {
                         self.builder.position_at_end(last_block);
                         if name == "main" {
@@ -242,7 +210,62 @@ impl<'ctx> Codegen<'ctx> {
                 self.cast_value(src_v, target_tp)
             }
 
-            // TODO: Call
+            Expr::Call { name, args, .. } => {
+                let function = self
+                    .functions
+                    .get(name)
+                    .ok_or_else(|| format!("undefined function '{}'", name))?
+                    .1;
+
+                let mut arg_v: Vec<BasicValueEnum> = Vec::with_capacity(args.len());
+                for arg in args {
+                    arg_v.push(self.cmpl_expr(arg)?);
+                }
+                let arg_meta: Vec<BasicMetadataValueEnum> =
+                    arg_v.iter().map(|&v| v.into()).collect();
+
+                let call_site = self
+                    .builder
+                    .build_call(function, &arg_meta, "call")
+                    .map_err(map_err)?;
+
+                match call_site.try_as_basic_value() {
+                    ValueKind::Basic(v) => Ok(v),
+                    ValueKind::Instruction(_) => {
+                        let dum = self.context.i32_type().const_int(0, false);
+                        Ok(BasicValueEnum::IntValue(dum))
+                    }
+                }
+            }
+
+            Expr::FmtStr { raw, .. } => {
+                let (fmt_ptr, args) = self.compile_fmt_str(raw, false)?;
+                let asprintf = self.get_or_create_asprintf();
+
+                let result_ptr = self
+                    .builder
+                    .build_alloca(self.context.ptr_type(AddressSpace::default()), "fmt_result")
+                    .map_err(map_err)?;
+
+                let mut all_args = vec![result_ptr.into(), fmt_ptr.into()];
+                all_args.extend(args.into_iter().map(BasicMetadataValueEnum::from));
+
+                self.builder
+                    .build_call(asprintf, &all_args, "asprintf")
+                    .map_err(map_err)?;
+
+                let loaded = self
+                    .builder
+                    .build_load(
+                        self.context.ptr_type(AddressSpace::default()),
+                        result_ptr,
+                        "loaded_fmt",
+                    )
+                    .map_err(map_err)?;
+
+                Ok(loaded.into())
+            }
+
             _ => Err(format!("unimplemented expr: {:?}", expr)),
         }
     }
@@ -310,8 +333,180 @@ impl<'ctx> Codegen<'ctx> {
             Types::Char => self.context.i32_type().into(),
 
             Types::Pointer { .. } => self.context.ptr_type(AddressSpace::default()).into(),
-            Types::Str | Types::String => self.context.ptr_type(AddressSpace::default()).into(),
+            Types::Str | Types::String | Types::Cstr => {
+                self.context.ptr_type(AddressSpace::default()).into()
+            }
             _ => unimplemented!("type {:?}", tp),
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    fn prepare_fmt_and_args(
+        &mut self,
+        expr: &Expr,
+    ) -> Result<(PointerValue<'ctx>, Vec<BasicValueEnum<'ctx>>), String> {
+        match expr {
+            Expr::FmtStr { raw, .. } => self.compile_fmt_str(raw, false),
+
+            _ => {
+                let (fmt_lit, args) = self.format_single_expr(expr)?;
+                let fmt_ptr = self
+                    .builder
+                    .build_global_string_ptr(&fmt_lit, "fmt")
+                    .map_err(map_err)?
+                    .as_pointer_value();
+                Ok((fmt_ptr, args))
+            }
+        }
+    }
+
+    fn format_single_expr(
+        &mut self,
+        expr: &Expr,
+    ) -> Result<(String, Vec<BasicValueEnum<'ctx>>), String> {
+        let v = self.cmpl_expr(expr)?;
+        let fmt = match v {
+            BasicValueEnum::IntValue(v) => {
+                let width = v.get_type().get_bit_width();
+                if width == 1 {
+                    "%s\n".to_string()
+                } else {
+                    "%d\n".to_string()
+                }
+            }
+
+            BasicValueEnum::FloatValue(_) => "%g\n".to_string(),
+            BasicValueEnum::PointerValue(_) => {
+                // TODO: use type annotation from sema.
+                "%s\n".to_string()
+            }
+
+            _ => return Err("unsupported type for print".into()),
+        };
+
+        let formatted = self.convert_for_printf(v)?;
+        Ok((fmt, vec![formatted]))
+    }
+
+    fn compile_fmt_str(
+        &mut self,
+        raw: &str,
+        newline: bool,
+    ) -> Result<(PointerValue<'ctx>, Vec<BasicValueEnum<'ctx>>), String> {
+        let bind = Self::unescape_string(raw);
+        let raw = bind.as_str();
+        let mut fmt_lit = String::new();
+        let mut args = Vec::new();
+        let mut rem = raw;
+
+        while let Some(start) = rem.find('{') {
+            let end = rem[start..]
+                .find('}')
+                .ok_or_else(|| "unclosed '{' in format string".to_string())?;
+            fmt_lit.push_str(&rem[..start]);
+            let ident = &rem[start + 1..start + end];
+            let v = self.cmpl_expr(&Expr::Id {
+                name: ident.to_string(),
+                line: 0,
+            })?;
+
+            let spec = match v {
+                BasicValueEnum::IntValue(_) => "%d",
+                BasicValueEnum::FloatValue(_) => "%g",
+                BasicValueEnum::PointerValue(_) => "%s",
+                _ => return Err("unsupported type in format string".into()),
+            };
+
+            fmt_lit.push_str(spec);
+            args.push(self.convert_for_printf(v)?);
+
+            rem = &rem[start + end + 1..];
+        }
+
+        fmt_lit.push_str(rem);
+        if newline {
+            fmt_lit.push('\n');
+        }
+
+        let fmt_ptr = self
+            .builder
+            .build_global_string_ptr(&fmt_lit, "fmt")
+            .map_err(map_err)?
+            .as_pointer_value();
+
+        Ok((fmt_ptr, args))
+    }
+
+    fn convert_for_printf(&self, v: BasicValueEnum<'ctx>) -> Result<BasicValueEnum<'ctx>, String> {
+        match v {
+            BasicValueEnum::IntValue(v) if v.get_type().get_bit_width() < 32 => {
+                let ext = self
+                    .builder
+                    .build_int_s_extend_or_bit_cast(v, self.context.i32_type(), "ext")
+                    .map_err(map_err)?;
+                Ok(ext.into())
+            }
+            BasicValueEnum::FloatValue(v) if v.get_type().get_bit_width() < 64 => {
+                let ext = self
+                    .builder
+                    .build_float_ext(v, self.context.f64_type(), "fext")
+                    .map_err(map_err)?;
+                Ok(ext.into())
+            }
+            BasicValueEnum::StructValue(_sv) => {
+                // TODO: AST type to know the layout.
+                Err("Direct printing of structs not yet supported".into())
+            }
+
+            other => Ok(other),
+        }
+    }
+
+    fn get_or_create_printf(&self) -> FunctionValue<'ctx> {
+        if let Some(func) = self.module.get_function("printf") {
+            return func;
+        }
+        let printf_tp = self.context.i32_type().fn_type(
+            &[self.context.ptr_type(AddressSpace::default()).into()],
+            true,
+        );
+        self.module.add_function("printf", printf_tp, None)
+    }
+
+    fn get_or_create_asprintf(&self) -> FunctionValue<'ctx> {
+        if let Some(function) = self.module.get_function("asprintf") {
+            return function;
+        };
+
+        let asprintf_tp = self.context.i32_type().fn_type(
+            &[
+                self.context.ptr_type(AddressSpace::default()).into(),
+                self.context.ptr_type(AddressSpace::default()).into(),
+            ],
+            true,
+        );
+        self.module.add_function("asprintf", asprintf_tp, None)
+    }
+
+    fn declare_fn(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Fun {
+                    name,
+                    rt_tp,
+                    params,
+                    ..
+                } => {
+                    let fn_tp = self.fn_tp(name, rt_tp, params);
+                    let function = self.module.add_function(name, fn_tp, None);
+                    self.functions.insert(name.clone(), (fn_tp, function));
+                }
+
+                Stmt::Block(stmts) => self.declare_fn(stmts),
+
+                _ => {}
+            }
         }
     }
 
@@ -409,6 +604,58 @@ impl<'ctx> Codegen<'ctx> {
 
             _ => Err(format!("unsupported cast")),
         }
+    }
+
+    // ------------------------------------------------------------------------
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop().expect("scope stack underflow");
+    }
+
+    fn define_v(&mut self, name: String, variable: (PointerValue<'ctx>, BasicTypeEnum<'ctx>)) {
+        self.scopes
+            .last_mut()
+            .expect("no active scope")
+            .insert(name, variable);
+    }
+
+    fn lookup_v(&self, name: &str) -> Option<&(PointerValue<'ctx>, BasicTypeEnum<'ctx>)> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(v) = scope.get(name) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn unescape_string(raw: &str) -> String {
+        let mut out = String::with_capacity(raw.len());
+        let mut chars = raw.chars();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('n') => out.push('\n'),
+                    Some('t') => out.push('\t'),
+                    Some('r') => out.push('\r'),
+                    Some('\\') => out.push('\\'),
+                    Some('"') => out.push('"'),
+                    Some('{') => out.push('{'),
+                    Some('}') => out.push('}'),
+                    Some(c) => {
+                        out.push('\\');
+                        out.push(c);
+                    }
+                    None => out.push('\\'),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
     }
 }
 

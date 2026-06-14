@@ -1,4 +1,6 @@
 fn main() {
-    print "Hello World!";
-    printf("number: %d", 13);
+    let hello: str = "Hello";
+    let world: str = "world";
+    let times: i8 = 1222; // should be an overflow aren't synced
+    print f"{hello} {world} {times} times!\n";
 }
