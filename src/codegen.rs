@@ -4,7 +4,7 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType};
-use inkwell::values::{BasicValueEnum, IntValue, PointerValue};
+use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 
@@ -14,21 +14,47 @@ pub struct Codegen<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    variables: HashMap<String, (PointerValue<'ctx>, BasicTypeEnum<'ctx>)>,
+    scopes: Vec<HashMap<String, (PointerValue<'ctx>, BasicTypeEnum<'ctx>)>>,
+    // functions: HashMap<String, (FunctionType<'ctx>, FunctionValue<'ctx>)>,
 }
 
 impl<'ctx> Codegen<'ctx> {
     pub fn new(context: &'ctx Context, module_name: &str) -> Self {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
-        let variables = HashMap::new();
+        let scopes = vec![HashMap::new()];
+        // let functions = HashMap::new();
 
         Self {
             context,
             module,
             builder,
-            variables,
+            scopes,
         }
+    }
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop().expect("scope stack underflow");
+    }
+
+    fn define_v(&mut self, name: String, variable: (PointerValue<'ctx>, BasicTypeEnum<'ctx>)) {
+        self.scopes
+            .last_mut()
+            .expect("no active scope")
+            .insert(name, variable);
+    }
+
+    fn lookup_v(&self, name: &str) -> Option<&(PointerValue<'ctx>, BasicTypeEnum<'ctx>)> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(v) = scope.get(name) {
+                return Some(v);
+            }
+        }
+        None
     }
 
     pub fn compile(&mut self, stmts: &[Stmt]) -> Result<(), String> {
@@ -45,28 +71,6 @@ impl<'ctx> Codegen<'ctx> {
         Ok(())
     }
 
-    fn llvm_tp(&self, tp: &Types) -> BasicTypeEnum<'ctx> {
-        match tp {
-            Types::Unit => self.context.i32_type().into(),
-            Types::I8 => self.context.i8_type().into(),
-            Types::I16 => self.context.i16_type().into(),
-            Types::I32 => self.context.i32_type().into(),
-            Types::I64 => self.context.i64_type().into(),
-            Types::U8 => self.context.i8_type().into(),
-            Types::U16 => self.context.i16_type().into(),
-            Types::U32 => self.context.i32_type().into(),
-            Types::U64 => self.context.i64_type().into(),
-            Types::F32 => self.context.f32_type().into(),
-            Types::F64 => self.context.f64_type().into(),
-            Types::Bool => self.context.bool_type().into(),
-            Types::Char => self.context.i32_type().into(),
-
-            Types::Pointer { .. } => self.context.ptr_type(AddressSpace::default()).into(),
-            Types::Str | Types::String => self.context.ptr_type(AddressSpace::default()).into(),
-            _ => unimplemented!("type {:?}", tp),
-        }
-    }
-
     fn cmpl_stmt(&mut self, stmt: &Stmt) -> Result<(), String> {
         match stmt {
             Stmt::Let { name, value, .. } => {
@@ -77,14 +81,16 @@ impl<'ctx> Codegen<'ctx> {
                         .build_alloca(v.get_type(), name)
                         .map_err(map_err)?;
                     self.builder.build_store(alc, v).map_err(map_err)?;
-                    self.variables.insert(name.clone(), (alc, v.get_type()));
+                    self.define_v(name.clone(), (alc, v.get_type()));
                 }
                 Ok(())
             }
+
             Stmt::Expr { expr, .. } => {
                 self.cmpl_expr(expr)?;
                 Ok(())
             }
+
             Stmt::Print(expr) => {
                 let printf_fn = self
                     .module
@@ -111,6 +117,7 @@ impl<'ctx> Codegen<'ctx> {
                     .map_err(map_err)?;
                 Ok(())
             }
+
             Stmt::Ret { expr, .. } => {
                 match expr {
                     Some(e) => {
@@ -123,6 +130,16 @@ impl<'ctx> Codegen<'ctx> {
                 }
                 Ok(())
             }
+
+            Stmt::Block(stmts) => {
+                self.push_scope();
+                for stmt in stmts {
+                    self.cmpl_stmt(stmt)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+
             Stmt::Fun {
                 name,
                 rt_tp,
@@ -135,6 +152,8 @@ impl<'ctx> Codegen<'ctx> {
                 let entry = self.context.append_basic_block(func, "entry");
                 self.builder.position_at_end(entry);
 
+                self.push_scope();
+
                 for (i, (p_name, _)) in params.iter().enumerate() {
                     let param = func.get_nth_param(i as u32).unwrap();
                     let alc = self
@@ -142,8 +161,7 @@ impl<'ctx> Codegen<'ctx> {
                         .build_alloca(param.get_type(), p_name)
                         .map_err(map_err)?;
                     self.builder.build_store(alc, param).map_err(map_err)?;
-                    self.variables
-                        .insert(p_name.clone(), (alc, param.get_type()));
+                    self.define_v(p_name.clone(), (alc, param.get_type()));
                 }
 
                 for s in body {
@@ -163,8 +181,10 @@ impl<'ctx> Codegen<'ctx> {
                     }
                 }
 
+                self.pop_scope();
                 Ok(())
             }
+
             _ => Err(format!("unimplemented statement {:?}", stmt)),
         }
     }
@@ -175,18 +195,22 @@ impl<'ctx> Codegen<'ctx> {
                 let tp = self.context.i32_type();
                 Ok(tp.const_int(*n as u64, true).into())
             }
+
             Expr::Float(f) => {
                 let tp = self.context.f32_type();
                 Ok(tp.const_float(*f).into())
             }
+
             Expr::Bool(b) => {
                 let tp = self.context.bool_type();
                 Ok(tp.const_int(*b as u64, false).into())
             }
+
             Expr::Char(c) => {
                 let tp = self.context.i32_type();
                 Ok(tp.const_int(*c as u64, false).into())
             }
+
             Expr::Str(s) => {
                 let str_v = self
                     .builder
@@ -194,14 +218,15 @@ impl<'ctx> Codegen<'ctx> {
                     .map_err(map_err)?;
                 Ok(str_v.as_pointer_value().into())
             }
+
             Expr::Id { name, .. } => {
                 let (ptr, tp) = self
-                    .variables
-                    .get(name)
+                    .lookup_v(name)
                     .ok_or_else(|| format!("undefined variable '{}'", name))?;
                 let v = self.builder.build_load(*tp, *ptr, name).map_err(map_err)?;
                 Ok(v)
             }
+
             Expr::Binary {
                 left, op, right, ..
             } => {
@@ -265,6 +290,28 @@ impl<'ctx> Codegen<'ctx> {
             _ => return Err(format!("unimplemented binop: {:?}", o)),
         };
         Ok(result.into())
+    }
+
+    fn llvm_tp(&self, tp: &Types) -> BasicTypeEnum<'ctx> {
+        match tp {
+            Types::Unit => self.context.i32_type().into(),
+            Types::I8 => self.context.i8_type().into(),
+            Types::I16 => self.context.i16_type().into(),
+            Types::I32 => self.context.i32_type().into(),
+            Types::I64 => self.context.i64_type().into(),
+            Types::U8 => self.context.i8_type().into(),
+            Types::U16 => self.context.i16_type().into(),
+            Types::U32 => self.context.i32_type().into(),
+            Types::U64 => self.context.i64_type().into(),
+            Types::F32 => self.context.f32_type().into(),
+            Types::F64 => self.context.f64_type().into(),
+            Types::Bool => self.context.bool_type().into(),
+            Types::Char => self.context.i32_type().into(),
+
+            Types::Pointer { .. } => self.context.ptr_type(AddressSpace::default()).into(),
+            Types::Str | Types::String => self.context.ptr_type(AddressSpace::default()).into(),
+            _ => unimplemented!("type {:?}", tp),
+        }
     }
 
     fn fn_tp(
