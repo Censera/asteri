@@ -12,6 +12,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        linkage: [static, dynamic]
+        include:
+          - linkage: static
+            no_polly: "1"
+            no_ffi: "1"
+          - linkage: dynamic
+            no_polly: "0"
+            no_ffi: "0"
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -31,9 +40,17 @@ jobs:
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
 
       - name: Build
-        run: cargo build --release
+        env:
+          LLVM_SYS_no_polly: ${{ matrix.no_polly }}
+          LLVM_SYS_no_ffi_libs: ${{ matrix.no_ffi }}
+        run: |
+          if [ "${{ matrix.linkage }}" = "dynamic" ]; then
+            cargo build --release --features inkwell/llvm20-1,inkwell/prefer-dynamic
+          else
+            cargo build --release
+          fi
 
-      - name: Rename
+      - name: Rename bins
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             mv target/release/asteri asteri-macos
@@ -46,6 +63,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            asteri-linux
-            asteri-macos
+            asteri-linux-static
+            asteri-linux-dynamic
+            asteri-macos-static
+            asteri-macos-dynamic
           fail_on_unmatched_files: false
