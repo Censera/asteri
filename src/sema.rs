@@ -897,8 +897,14 @@ fn is_numeric(tp: &Types) -> bool {
 
 fn is_castable(src: &Types, target: &Types) -> bool {
     use Types::*;
-
     match (src, target) {
+        (Str, String)
+        | (Str, Cstr)
+        | (String, Str)
+        | (String, Cstr)
+        | (Cstr, Str)
+        | (Cstr, String) => true,
+
         (
             I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | Char,
             I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | Char,
