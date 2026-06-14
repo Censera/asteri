@@ -31,16 +31,6 @@ jobs:
           brew install llvm@20
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
 
-      - name: Install LLVM (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/LLVM-20.1.0-win64.exe"
-          $output = "$env:TEMP\LLVM-Installer.exe"
-          Invoke-WebRequest -Uri $url -OutFile $output
-          Start-Process -FilePath $output -ArgumentList "/S /D=C:\LLVM-20" -Wait
-          echo "LLVM_SYS_201_PREFIX=C:\LLVM-20" >> $env:GITHUB_ENV
-        shell: powershell
-
       - name: Build
         run: |
           if [ "${{ matrix.linkage }}" = "dynamic" ]; then
