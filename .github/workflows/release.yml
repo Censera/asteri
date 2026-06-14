@@ -34,7 +34,7 @@ jobs:
       - name: Build
         run: |
           if [ "${{ matrix.linkage }}" = "dynamic" ]; then
-            cargo build --release --features inkwell/llvm20-1,inkwell/prefer-dynamic
+            cargo build --release --features inkwell/llvm20-1-prefer-dynamic
           else
             cargo build --release
           fi
