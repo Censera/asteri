@@ -25,5 +25,12 @@ jobs:
           brew install llvm@20
           echo "LLVM_SYS_201_PREFIX=$(brew --prefix llvm@20)" >> $GITHUB_ENV
 
+      - name: Windows
+        if: matrix.os == 'windows-latest'
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "20.1"
+          cached: true
+
       - name: Run Tests
         run: cargo test --verbose
