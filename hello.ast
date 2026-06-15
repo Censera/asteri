@@ -1,7 +1,3 @@
 fn main() {
-    let hello: String = "Hello" -> String;
-    let world: String = ("world" -> cstr) -> String;
-    let bang: char = '!';
-    let times: i8 = 1222; // should be an overflow aren't synced
-    print f"{hello} {world} {times} times!\n";
+    print "hello";
 }

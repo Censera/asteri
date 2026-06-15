@@ -181,11 +181,20 @@ impl<'ctx> Codegen<'ctx> {
             }
 
             Expr::Str(s) => {
-                let str_v = self
-                    .builder
-                    .build_global_string_ptr(s, ".str")
-                    .map_err(map_err)?;
-                Ok(str_v.as_pointer_value().into())
+                let len = s.len() as i64;
+                let global_str = self.builder.build_global_string_ptr(s, ".str")
+                .map_err(map_err)?;
+
+                let data_ptr = global_str.as_pointer_value();
+
+                let str_tp = self.llvm_tp(&Types::Str).into_struct_type();
+                let mut fields = Vec::new();
+                fields.push(BasicTypeEnum::PointerValue(data_ptr));
+                fields.push(BasicTypeEnum::IntValue(
+                    self.context.i64_type().const_int(len, false),
+                ));
+                let str_v = str_tp.const_named_sturct(&fields);
+                Ok(str_v.into())
             }
 
             Expr::Id { name, .. } => {
@@ -254,16 +263,20 @@ impl<'ctx> Codegen<'ctx> {
                     .build_call(asprintf, &all_args, "asprintf")
                     .map_err(map_err)?;
 
-                let loaded = self
-                    .builder
-                    .build_load(
-                        self.context.ptr_type(AddressSpace::default()),
-                        result_ptr,
-                        "loaded_fmt",
-                    )
-                    .map_err(map_err)?;
+                let data_ptr = self.builder.build_load(
+                    self.context.ptr_type(AddressSpace::default()),
+                    result_ptr,
+                    "loaded_fmt",
+                ).map_err(map_err)?;
 
-                Ok(loaded.into())
+
+                let strlen = self.get_or_create_strlen();
+                let let_v = self.builder.build_call(str, &[data_ptr.into()], "strlen").map_err(map_err)?.try_as_basic_value().left().unwrap().into_int_value();
+
+                let str_tp = self.llvm_tp(&Type::Str).into_struct_type();
+                let str_v = str_type.const_named_sturct(&[data_ptr.into(), len_v.into()]);
+
+                Ok(str_v.into())
             }
 
             _ => Err(format!("unimplemented expr: {:?}", expr)),
@@ -333,8 +346,25 @@ impl<'ctx> Codegen<'ctx> {
             Types::Char => self.context.i32_type().into(),
 
             Types::Pointer { .. } => self.context.ptr_type(AddressSpace::default()).into(),
-            Types::Str | Types::String | Types::Cstr => {
-                self.context.ptr_type(AddressSpace::default()).into()
+            
+            Types::Str => {
+                let fields = [
+                    self.context.ptr_type(AddressSpace::default()).into(), // data
+                    self.context.i64_type().into(),  // len
+                ];
+                self.context.struct_type(&fields, false).into()
+            }
+
+            Types::String => {
+                let fields = [
+                    self.context.ptr_type(AddressSpace::default()).into(), // data
+                    self.context.i64_type().into(),  // cap
+                    self.context.i64_type().into(), // len
+                ];
+                self.context.struct_type(&fields, false).into()
+            }
+            Types::Cstr => {
+                self.context.ptr_type(AddressSpace::default()).into
             }
             _ => unimplemented!("type {:?}", tp),
         }
@@ -507,6 +537,18 @@ impl<'ctx> Codegen<'ctx> {
 
                 _ => {}
             }
+        }
+    }
+
+    fn  get_or_create_strlen(&self) -> FunctionValue {
+        if let Some(function) = self.module.get_function("strlen") {
+            return function;
+        } else {
+            let strlen_tp = self.context.i64_type().fn_type(
+                &[self.context.ptr_type(AddressSpace::default()).into()],
+                false,
+            );
+            self.module.add_function("strlen", strlen_tp, None)
         }
     }
 
