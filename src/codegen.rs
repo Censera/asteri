@@ -269,7 +269,6 @@ impl<'ctx> Codegen<'ctx> {
                     "loaded_fmt",
                 ).map_err(map_err)?;
 
-
                 let strlen = self.get_or_create_strlen();
                 let let_v = self.builder.build_call(str, &[data_ptr.into()], "strlen").map_err(map_err)?.try_as_basic_value().left().unwrap().into_int_value();
 
