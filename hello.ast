@@ -1,3 +1,6 @@
 fn main() {
-    print "hello";
+    let hello: String = "Hello" -> String;
+    let world: String = ("world" -> cstr) -> String;
+    let times: i32 = 1222;
+    print f"{hello} {world} {times} times!\n";
 }

@@ -181,19 +181,19 @@ impl<'ctx> Codegen<'ctx> {
             }
 
             Expr::Str(s) => {
-                let len = s.len() as i64;
-                let global_str = self.builder.build_global_string_ptr(s, ".str")
-                .map_err(map_err)?;
-
+                let len = s.len() as u64;
+                let global_str = self
+                    .builder
+                    .build_global_string_ptr(s, ".str")
+                    .map_err(map_err)?;
                 let data_ptr = global_str.as_pointer_value();
 
-                let str_tp = self.llvm_tp(&Types::Str).into_struct_type();
-                let mut fields = Vec::new();
-                fields.push(BasicTypeEnum::PointerValue(data_ptr));
-                fields.push(BasicTypeEnum::IntValue(
-                    self.context.i64_type().const_int(len, false),
-                ));
-                let str_v = str_tp.const_named_sturct(&fields);
+                let str_type = self.llvm_tp(&Types::Str).into_struct_type();
+                let fields: &[BasicValueEnum] = &[
+                    data_ptr.into(),
+                    self.context.i64_type().const_int(len, false).into(),
+                ];
+                let str_v = str_type.const_named_struct(fields);
                 Ok(str_v.into())
             }
 
@@ -215,6 +215,118 @@ impl<'ctx> Codegen<'ctx> {
 
             Expr::Cast { expr, target, .. } => {
                 let src_v = self.cmpl_expr(expr)?;
+
+                match (&src_v, target) {
+                    (BasicValueEnum::StructValue(sv), Types::Cstr) => {
+                        let data = self
+                            .builder
+                            .build_extract_value(*sv, 0, "data")
+                            .map_err(map_err)?
+                            .into_pointer_value();
+                        return Ok(data.into());
+                    }
+                    (BasicValueEnum::PointerValue(ptr), Types::Str) => {
+                        let strlen = self.get_or_create_strlen();
+                        let len_val = self
+                            .builder
+                            .build_call(strlen, &[(*ptr).into()], "strlen")
+                            .map_err(map_err)?
+                            .try_as_basic_value();
+                        let len_val = match len_val {
+                            ValueKind::Basic(v) => v.into_int_value(),
+                            _ => return Err("strlen call failed".into()),
+                        };
+                        let str_type = self.llvm_tp(&Types::Str).into_struct_type();
+                        let undef_struct = str_type.get_undef();
+                        let str_struct = self.builder
+                            .build_insert_value(undef_struct, *ptr, 0, "str_data")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        let str_struct = self.builder
+                            .build_insert_value(str_struct, len_val, 1, "str_len")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        return Ok(BasicValueEnum::StructValue(str_struct));
+                    }
+                    (BasicValueEnum::PointerValue(ptr), Types::String) => {
+                    let strlen = self.get_or_create_strlen();
+                    let len_val = self.builder
+                        .build_call(strlen, &[(*ptr).into()], "strlen")
+                        .map_err(map_err)?
+                        .try_as_basic_value();
+                    let len_val = match len_val {
+                        ValueKind::Basic(v) => v.into_int_value(),
+                        _ => return Err("strlen call failed".into()),
+                    };
+                    let string_type = self.llvm_tp(&Types::String).into_struct_type();
+                    let undef_struct = string_type.get_undef();
+                    let string_struct = self.builder
+                        .build_insert_value(undef_struct, *ptr, 0, "string_data")
+                        .map_err(map_err)?
+                        .into_struct_value();
+                    let string_struct = self.builder
+                        .build_insert_value(string_struct, len_val, 1, "string_len")
+                        .map_err(map_err)?
+                        .into_struct_value();
+                    let string_struct = self.builder
+                        .build_insert_value(string_struct, len_val, 2, "string_cap")
+                        .map_err(map_err)?
+                        .into_struct_value();
+                    return Ok(BasicValueEnum::StructValue(string_struct));
+                }
+                    (BasicValueEnum::StructValue(sv), Types::String) => {
+                        let data = self
+                            .builder
+                            .build_extract_value(*sv, 0, "data")
+                            .map_err(map_err)?
+                            .into_pointer_value();
+                        let len_val = self
+                            .builder
+                            .build_extract_value(*sv, 1, "len")
+                            .map_err(map_err)?
+                            .into_int_value();
+                        let string_type = self.llvm_tp(&Types::String).into_struct_type();
+                        let undef_struct = string_type.get_undef();
+                        let string_struct = self.builder
+                            .build_insert_value(undef_struct, data, 0, "string_data")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        let string_struct = self.builder
+                            .build_insert_value(string_struct, len_val, 1, "string_cap")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        let string_struct = self.builder
+                            .build_insert_value(string_struct, len_val, 2, "string_len")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        return Ok(BasicValueEnum::StructValue(string_struct));
+                    }
+                    (BasicValueEnum::StructValue(sv), Types::Str) => {
+                        let data = self
+                            .builder
+                            .build_extract_value(*sv, 0, "data")
+                            .map_err(map_err)?
+                            .into_pointer_value();
+                        let len_val = self
+                            .builder
+                            .build_extract_value(*sv, 1, "len")
+                            .map_err(map_err)?
+                            .into_int_value();
+                        let str_type = self.llvm_tp(&Types::Str).into_struct_type();
+                        let undef_struct = str_type.get_undef();
+                        let str_struct = self.builder
+                            .build_insert_value(undef_struct, data, 0, "str_data")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        let str_struct = self.builder
+                            .build_insert_value(str_struct, len_val, 1, "str_len")
+                            .map_err(map_err)?
+                            .into_struct_value();
+                        return Ok(BasicValueEnum::StructValue(str_struct));
+                    }
+                    _ => {}
+                }
+
                 let target_tp = self.llvm_tp(target);
                 self.cast_value(src_v, target_tp)
             }
@@ -253,7 +365,10 @@ impl<'ctx> Codegen<'ctx> {
 
                 let result_ptr = self
                     .builder
-                    .build_alloca(self.context.ptr_type(AddressSpace::default()), "fmt_result")
+                    .build_alloca(
+                        self.context.ptr_type(AddressSpace::default()),
+                        "fmt_result",
+                    )
                     .map_err(map_err)?;
 
                 let mut all_args = vec![result_ptr.into(), fmt_ptr.into()];
@@ -263,24 +378,41 @@ impl<'ctx> Codegen<'ctx> {
                     .build_call(asprintf, &all_args, "asprintf")
                     .map_err(map_err)?;
 
-                let data_ptr = self.builder.build_load(
-                    self.context.ptr_type(AddressSpace::default()),
-                    result_ptr,
-                    "loaded_fmt",
-                ).map_err(map_err)?;
+                let data_ptr = self
+                    .builder
+                    .build_load(
+                        self.context.ptr_type(AddressSpace::default()),
+                        result_ptr,
+                        "loaded_fmt",
+                    )
+                    .map_err(map_err)?;
 
                 let strlen = self.get_or_create_strlen();
-                let let_v = self.builder.build_call(str, &[data_ptr.into()], "strlen").map_err(map_err)?.try_as_basic_value().left().unwrap().into_int_value();
+                let len_val = self
+                    .builder
+                    .build_call(strlen, &[data_ptr.into()], "strlen")
+                    .map_err(map_err)?
+                    .try_as_basic_value();
+                let len_val = match len_val {
+                    ValueKind::Basic(v) => v.into_int_value(),
+                    _ => return Err("strlen call failed".into()),
+                };
 
-                let str_tp = self.llvm_tp(&Type::Str).into_struct_type();
-                let str_v = str_type.const_named_sturct(&[data_ptr.into(), len_v.into()]);
-
-                Ok(str_v.into())
+                let str_type = self.llvm_tp(&Types::Str).into_struct_type();
+                let undef_struct = str_type.get_undef();
+                let str_struct = self.builder
+                    .build_insert_value(undef_struct, data_ptr, 0, "str_data")
+                    .map_err(map_err)?
+                    .into_struct_value();
+                let str_struct = self.builder
+                    .build_insert_value(str_struct, len_val, 1, "str_len")
+                    .map_err(map_err)?
+                    .into_struct_value();
+                Ok(BasicValueEnum::StructValue(str_struct))
             }
-
             _ => Err(format!("unimplemented expr: {:?}", expr)),
         }
-    }
+    } 
 
     fn cmpl_bin_op(
         &self,
@@ -363,7 +495,7 @@ impl<'ctx> Codegen<'ctx> {
                 self.context.struct_type(&fields, false).into()
             }
             Types::Cstr => {
-                self.context.ptr_type(AddressSpace::default()).into
+                self.context.ptr_type(AddressSpace::default()).into() // a pointer a string with \0
             }
             _ => unimplemented!("type {:?}", tp),
         }
@@ -395,27 +527,33 @@ impl<'ctx> Codegen<'ctx> {
         expr: &Expr,
     ) -> Result<(String, Vec<BasicValueEnum<'ctx>>), String> {
         let v = self.cmpl_expr(expr)?;
-        let fmt = match v {
-            BasicValueEnum::IntValue(v) => {
-                let width = v.get_type().get_bit_width();
-                if width == 1 {
-                    "%s\n".to_string()
-                } else {
-                    "%d\n".to_string()
-                }
+        match v {
+            BasicValueEnum::IntValue(iv) => {
+                let width = iv.get_type().get_bit_width();
+                let fmt = if width == 1 { "%s\n".to_string() } else { "%d\n".to_string() };
+                Ok((fmt, vec![self.convert_for_printf(v)?]))
             }
-
-            BasicValueEnum::FloatValue(_) => "%g\n".to_string(),
+            BasicValueEnum::FloatValue(_) => {
+                Ok(("%g\n".to_string(), vec![self.convert_for_printf(v)?]))
+            }
             BasicValueEnum::PointerValue(_) => {
-                // TODO: use type annotation from sema.
-                "%s\n".to_string()
+                Ok(("%s\n".to_string(), vec![self.convert_for_printf(v)?]))
             }
-
-            _ => return Err("unsupported type for print".into()),
-        };
-
-        let formatted = self.convert_for_printf(v)?;
-        Ok((fmt, vec![formatted]))
+            BasicValueEnum::StructValue(sv) => {
+                let data_ptr = self
+                    .builder
+                    .build_extract_value(sv, 0, "data")
+                    .map_err(map_err)?
+                    .into_pointer_value();
+                let len_val = self
+                    .builder
+                    .build_extract_value(sv, 1, "len")
+                    .map_err(map_err)?
+                    .into_int_value();
+                Ok(("%.*s\n".to_string(), vec![len_val.into(), data_ptr.into()]))
+            }
+            _ => Err("unsupported type for print".into()),
+        }
     }
 
     fn compile_fmt_str(
@@ -430,33 +568,49 @@ impl<'ctx> Codegen<'ctx> {
         let mut rem = raw;
 
         while let Some(start) = rem.find('{') {
-            let end = rem[start..]
-                .find('}')
-                .ok_or_else(|| "unclosed '{' in format string".to_string())?;
-            fmt_lit.push_str(&rem[..start]);
-            let ident = &rem[start + 1..start + end];
-            let v = self.cmpl_expr(&Expr::Id {
-                name: ident.to_string(),
-                line: 0,
-            })?;
+                let end = rem[start..]
+                    .find('}')
+                    .ok_or_else(|| "unclosed '{' in format string".to_string())?;
+                fmt_lit.push_str(&rem[..start]);
+                let ident = &rem[start + 1..start + end];
+                let v = self.cmpl_expr(&Expr::Id {
+                    name: ident.to_string(),
+                    line: 0,
+                })?;
 
-            let spec = match v {
-                BasicValueEnum::IntValue(_) => "%d",
-                BasicValueEnum::FloatValue(_) => "%g",
-                BasicValueEnum::PointerValue(_) => "%s",
-                _ => return Err("unsupported type in format string".into()),
-            };
+                let spec = match v {
+                    BasicValueEnum::IntValue(_) => {
+                        args.push(self.convert_for_printf(v)?);
+                        "%d"
+                    }
+                    BasicValueEnum::FloatValue(_) => {
+                        args.push(self.convert_for_printf(v)?);
+                        "%g"
+                    }
+                    BasicValueEnum::PointerValue(_) => {
+                        args.push(self.convert_for_printf(v)?);
+                        "%s"
+                    }
+                    BasicValueEnum::StructValue(sv) => {
+                        let data_ptr = self
+                            .builder
+                            .build_extract_value(sv, 0, "data")
+                            .map_err(map_err)?
+                            .into_pointer_value();
+                        args.push(data_ptr.into());
+                        "%s"
+                    }
+                    _ => return Err("unsupported type in format string".into()),
+                };
 
-            fmt_lit.push_str(spec);
-            args.push(self.convert_for_printf(v)?);
+                fmt_lit.push_str(spec);
+                rem = &rem[start + end + 1..];
+            }
 
-            rem = &rem[start + end + 1..];
-        }
-
-        fmt_lit.push_str(rem);
-        if newline {
+            fmt_lit.push_str(rem);
+            if newline {
             fmt_lit.push('\n');
-        }
+            }
 
         let fmt_ptr = self
             .builder
@@ -484,10 +638,8 @@ impl<'ctx> Codegen<'ctx> {
                 Ok(ext.into())
             }
             BasicValueEnum::StructValue(_sv) => {
-                // TODO: AST type to know the layout.
                 Err("Direct printing of structs not yet supported".into())
             }
-
             other => Ok(other),
         }
     }
@@ -539,7 +691,7 @@ impl<'ctx> Codegen<'ctx> {
         }
     }
 
-    fn  get_or_create_strlen(&self) -> FunctionValue {
+    fn get_or_create_strlen(&self) -> FunctionValue<'ctx> {
         if let Some(function) = self.module.get_function("strlen") {
             return function;
         } else {
