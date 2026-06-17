@@ -54,8 +54,7 @@
             LIBCLANG_PATH = "${pkgs.llvmPackages_20.llvm.lib}/lib";
 
             shellHook = ''
-                clear
-                echo -e '\n\t\x1b[1;45m ✱\x1b[0m asteri\n'
+            clear
         '';
         };
     });
