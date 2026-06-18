@@ -2,7 +2,7 @@
 
 [package]
 name = "asteri"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "A compiled, statically typed DSL for game development."
 repository = "https://github.com/Censera/asteri"
