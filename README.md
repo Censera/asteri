@@ -1,4 +1,4 @@
-# asteri*
+# asteri* (WIP)
 
 A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
 
@@ -53,7 +53,7 @@ if score > 50 {
 }
 ```
 
-## Documentation
+## Documentation (WIP)
 
 - Getting Started
 - Progress & Roadmap
