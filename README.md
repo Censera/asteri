@@ -1,62 +1,12 @@
-# asteri* (WIP)
+# asteri* The Programming Languages (WIP)
 
-A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
-
-## Hello World
+A domain specific programming language designed for game development
 
 ```rust
 fn main() {
-    let hello = "Hello world!";
-    print hello;
+    print "Hello world!";
 }
 ```
-
-Output:
-
-```text
-Hello world!
-```
-
-## Installation
-
-```bash
-cargo install --git https://github.com/Censera/asteri
-```
-
-## Running Code
-
-```bash
-asteri run main.ast
-```
-
-## Language Overview
-
-Functions:
-
-```rust
-fn greet(name: str) {
-    print name;
-}
-```
-
-Variables:
-
-```rust
-let score = 100;
-```
-
-Control Flow:
-
-```rust
-if score > 50 {
-    print "Pass";
-}
-```
-
-## Documentation (WIP)
-
-- Getting Started
-- Progress & Roadmap
 
 ## License
 
