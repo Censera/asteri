@@ -7,7 +7,3 @@ fn main() {
     print "Hello world!";
 }
 ```
-
-## License
-
-[MIT](https://github.com/Censera/asteri/blob/entry/LICENSE)
