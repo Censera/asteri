@@ -1,9 +1,6 @@
-# asteri*
+# astery*
 
-A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
-
->> [!IMPORTANT]
-> The project is postponded  
+A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries. 
 
 ## Hello World
 
@@ -23,13 +20,13 @@ Hello world!
 ## Installation
 
 ```bash
-cargo install --git https://github.com/Censera/asteri
+cargo install --git https://github.com/Censera/astery
 ```
 
 ## Running Code
 
 ```bash
-asteri run main.ast
+astery run test/hello.ast
 ```
 
 ## Language Overview
@@ -63,4 +60,4 @@ if score > 50 {
 
 ## License
 
-[MIT](https://github.com/Censera/asteri/blob/entry/LICENSE)
+[Apache License](https://github.com/Censera/astery/blob/entry/LICENSE)

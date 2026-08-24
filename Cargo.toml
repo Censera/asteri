@@ -1,13 +1,13 @@
 [lints.clippy]
 
 [package]
-name = "asteri"
-version = "0.3.1"
+name = "astery"
+version = "26.8.0"
 edition = "2021"
-description = "A compiled, statically typed DSL for game development."
-repository = "https://github.com/Censera/asteri"
+description = "astery the programming language"
+repository = "https://github.com/Censera/astery"
 readme = "README.md"
-license = "MIT"
+license = "Apache-License-2.0"
 keywords = ["compiler", "language", "llvm"]
 categories = ["command-line-utilities", "development-tools::compilers"]
 

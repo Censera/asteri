@@ -3,32 +3,51 @@ pub use crate::lexer::Types;
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum UnaryOp {
-    Not,    // !
-    Minus,  // -
-    BitNot, // ~
+    // !
+    Not,
+    // -
+    Minus,
+    // >~
+    BitNot,
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum BinaryOp {
+    // +
     Add,
+    // -
     Sub,
+    // *
     Mul,
+    // /
     Div,
+    // =
     Eql,
+    // !=
     Neq,
+    // <
     LessTh,
+    // >
     GreaTh,
+    // <=
     LessOr,
+    // >=
     GreaOr,
+    // ||
     LogicOr,
+    // &&
     LogicAnd,
+    // <<
     ShiftLeft,
+    // >>
     ShiftRight,
-
-    BitOr,  // bor
-    BitAnd, // band
-    BitXor, // xor
+    // >|
+    BitOr,
+    // >&
+    BitAnd,
+    // >@
+    BitXor,
 }
 
 #[derive(Debug)]
@@ -117,13 +136,15 @@ pub enum Expr {
         line: usize,
     },
 
-    Reference(Box<Expr>), // &x
+    // &x
+    Reference(Box<Expr>),
 
+    // p^
     Dereference {
         expr: Box<Expr>,
         depth: usize,
         line: usize,
-    }, // p^
+    },
 
     Lambda {
         params: Vec<String>,

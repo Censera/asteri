@@ -1,5 +1,5 @@
 {
-    description = "asteri* lang";
+    description = "astery the programming language";
 
     inputs = {
         nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -17,8 +17,8 @@
         };
         in {
             packages.default = rustPlatform.buildRustPackage {
-                pname = "asteri";
-                version = "0.3.0";
+                pname = "astery";
+                version = "26.8.0";
                 src = ./.;
                 cargoLock.lockFile = ./Cargo.lock;
                 doCheck = false;

@@ -1,15 +1,15 @@
 <img src="/res/latest.svg" width="96" align="left">
 
-__asteri*__ is a domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
+__astery*__ is a domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries.
 
  
  _This project is a work in progress, so many of the features displayed here may not exist yet and might never exist depending on what is right for the project._  
  
- _Also, this is the general-purpose core of asteri*. Game development features (built-in game loop, graphics bindings, asset pipeline, physics types) are planned but not yet implemented. The language is fully usable for systems programming, scripting, and tooling in the future._
+ _Also, this is the general-purpose core of astery*. Game development features (built-in game loop, graphics bindings, asset pipeline, physics types) are planned but not yet implemented. The language is fully usable for systems programming, scripting, and tooling in the future._
 
 _See: __[Progress](prg.md)___
 
-[![RepoRanker](https://reporanker.com/badge/Censera/asteri)](https://reporanker.com/repos/Censera/asteri)
+[![RepoRanker](https://reporanker.com/badge/Censera/astery)](https://reporanker.com/repos/Censera/astery)
 
 ## Syntax
 
@@ -21,7 +21,7 @@ fn main() {
 }
 ```
 
-`fn main() { ... }` declares the entry point. `main` takes no parameters and returns nothing by default. It is always the first code that runs.
+`fn main() { .. }` declares the entry point. `main` takes no parameters and returns nothing by default. It is always the first code that runs.
 
 ### Variables
 
