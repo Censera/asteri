@@ -65,6 +65,11 @@ if condition {
     break
 }
 
+// Inline 
+let a = 1 if c > b;
+let f = 2 if a != 0 else 1;
+let b = 3 if a == 1 || 2 if a == 0;
+
 // Shortned
 if condition then statment;
 if condition then break
