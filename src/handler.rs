@@ -1,40 +1,36 @@
-use inkwell::builder::BuilderError;
-use inkwell::values::FunctionValue;
+use an_inkwell::{Builder, Type, Value};
 
 use crate::Context;
 
 pub struct Handler<'ctx> {
     context: &'ctx Context,
-    builder: inkwell::builder::Builder<'ctx>,
+    builder: Builder<'ctx>,
 }
 
 impl<'ctx> Handler<'ctx> {
-    pub(crate) fn new(context: &'ctx Context, function: FunctionValue<'ctx>) -> Self {
-        let builder = context.as_raw().create_builder();
-        let block = context.as_raw().append_basic_block(function, "entry");
-        builder.position_at_end(block);
-        Self { context, builder }
+    pub(crate) fn new(
+        context: &'ctx Context,
+        function: &an_inkwell::Function<'ctx>,
+    ) -> Result<Self, an_inkwell::Error> {
+        let builder = context.as_raw().builder()?;
+        let block = function.block("entry")?;
+        builder.position(&block)?;
+        Ok(Self { context, builder })
     }
 
-    pub fn return_void(&self) -> Result<(), BuilderError> {
-        self.builder.build_return(None).map(|_| ())
+    pub fn return_void(&self) -> Result<Value<'ctx>, an_inkwell::Error> {
+        self.builder.ret_void()
     }
 
-    pub fn return_i32(&self, value: i32) -> Result<(), BuilderError> {
-        let value = self
-            .context
-            .as_raw()
-            .i32_type()
-            .const_int(value as u64, true);
-        self.builder.build_return(Some(&value)).map(|_| ())
+    pub fn return_i32(&self, value: i32) -> Result<Value<'ctx>, an_inkwell::Error> {
+        let ty = Type::i32(self.context.as_raw());
+        let value = Value::integer(&ty, value as u64, true);
+        self.builder.ret(&value)
     }
 
-    pub fn return_i64(&self, value: i64) -> Result<(), BuilderError> {
-        let value = self
-            .context
-            .as_raw()
-            .i64_type()
-            .const_int(value as u64, true);
-        self.builder.build_return(Some(&value)).map(|_| ())
+    pub fn return_i64(&self, value: i64) -> Result<Value<'ctx>, an_inkwell::Error> {
+        let ty = Type::i64(self.context.as_raw());
+        let value = Value::integer(&ty, value as u64, true);
+        self.builder.ret(&value)
     }
 }
