@@ -3,7 +3,7 @@
 ## Main features
 
 ```rs
-// file: main.astery
+// file: main.as
 //! [type] is a placeholder for the language data types
 
 // Module declaration
@@ -318,3 +318,28 @@ let (a, b) = (b, a);
 +=, -=, *=, /=
 ==, >=, <=, !=
 ```
+
+## Outputs
+
+### Success
+
+```
+Finished [bin] in X ms
+```
+
+```
+Checked, and everything is OK.
+```
+
+### Warning
+
+```
+W [File][Line][Column] | Warning message
+W [main.as][2][8] | Unused variable
+```
+
+## Error
+
+```
+E [File][Line][Column] | Error message
+E [main.as][2][9] | Expected Semicolon `;`
