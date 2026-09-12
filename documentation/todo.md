@@ -3,9 +3,9 @@
 ## Foundation
 
 - [x] Define the v26 syntax source of truth.
-- [ ] Establish the compiler library and executable entry point.
-- [ ] Establish explicit compiler errors.
-- [ ] Keep compiler stage boundaries explicit.
+- [x] Establish the compiler library and executable entry point.
+- [x] Establish explicit compiler errors.
+- [x] Keep compiler stage boundaries explicit.
 
 ## Lexer
 
