@@ -17,7 +17,7 @@ pub use module::Module;
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Context, Error, Source, Stage, TokenKind, shortcuts};
+    use super::{Compiler, Context, Error, Source, Stage, Token, TokenKind, shortcuts};
 
     #[test]
     fn creates_i32_function() {
