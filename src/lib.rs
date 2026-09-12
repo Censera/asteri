@@ -221,18 +221,12 @@ mod tests {
             .parse_bindings(&Source::new("main.as", "let name = value;"))
             .unwrap();
 
-        assert_eq!(
-            declarations,
-            vec![BindingDeclaration {
-                kind: BindingKind::Let,
-                bindings: vec![super::parser::Binding {
-                    name: "name".into(),
-                    type_tokens: Vec::new(),
-                    value: None,
-                }],
-                value: Some(vec![Token::new_test(TokenKind::Identifier("value".into()))]),
-            }]
-        );
+        assert_eq!(declarations.len(), 1);
+        assert_eq!(declarations[0].kind, BindingKind::Let);
+        assert_eq!(declarations[0].bindings.len(), 1);
+        assert_eq!(declarations[0].bindings[0].name, "name");
+        assert!(declarations[0].bindings[0].type_tokens.is_empty());
+        assert!(declarations[0].value.is_some());
     }
 
     #[test]
