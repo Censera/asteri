@@ -20,10 +20,6 @@ impl<'ctx> Module<'ctx> {
         self.raw.get_function(name).map(Function::from_raw)
     }
 
-    pub fn add_function(&self, function: Function<'ctx>) {
-        let _ = function;
-    }
-
     pub fn as_ir(&self) -> String {
         self.raw.print_to_string().to_string()
     }
