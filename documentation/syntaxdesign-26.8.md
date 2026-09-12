@@ -269,6 +269,13 @@ let name [type]<length, value>;
 print name<index>;
 print name<name>;
 print name<name<index>>;
+
+let fixed i64[3];              // arrays: fixed-size, no push/pop/len
+let items i64<>;               // vectors: growable by default, push/pop/len builtin
+let items i64<> = <1, 2, 3>;
+items.push(5);
+items.pop();
+print items.len();
 ```
 ### Tuples
 
