@@ -15,13 +15,13 @@ pub use function::Function;
 pub use handler::Handler;
 pub use lexer::{Token, TokenKind};
 pub use module::Module;
-pub use parser::{Import, ImportItem, ModuleDeclaration};
+pub use parser::{Binding, BindingDeclaration, BindingKind, Import, ImportItem, ModuleDeclaration};
 
 #[cfg(test)]
 mod tests {
     use super::{
-        Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage, Token,
-        TokenKind, shortcuts,
+        BindingDeclaration, BindingKind, Compiler, Context, Error, Import, ImportItem,
+        ModuleDeclaration, Source, Stage, Token, TokenKind, shortcuts,
     };
 
     #[test]
@@ -212,6 +212,106 @@ mod tests {
                 name: "mygame".into()
             }
         );
+    }
+
+    #[test]
+    fn parses_simple_let_binding() {
+        let compiler = Compiler::new();
+        let declarations = compiler
+            .parse_bindings(&Source::new("main.as", "let name = value;"))
+            .unwrap();
+
+        assert_eq!(
+            declarations,
+            vec![BindingDeclaration {
+                kind: BindingKind::Let,
+                bindings: vec![super::parser::Binding {
+                    name: "name".into(),
+                    type_tokens: Vec::new(),
+                    value: None,
+                }],
+                value: Some(vec![Token::new_test(TokenKind::Identifier("value".into()))]),
+            }]
+        );
+    }
+
+    #[test]
+    fn parses_typed_let_and_const_bindings() {
+        let compiler = Compiler::new();
+        let declarations = compiler
+            .parse_bindings(&Source::new(
+                "main.as",
+                "let name string = value; const count i32 = 42;",
+            ))
+            .unwrap();
+
+        assert_eq!(declarations.len(), 2);
+        assert_eq!(declarations[0].kind, BindingKind::Let);
+        assert_eq!(declarations[0].bindings[0].name, "name");
+        assert_eq!(
+            declarations[0].bindings[0]
+                .type_tokens
+                .iter()
+                .map(Token::kind)
+                .collect::<Vec<_>>(),
+            vec![&TokenKind::Identifier("string".into())]
+        );
+        assert_eq!(declarations[1].kind, BindingKind::Const);
+        assert_eq!(declarations[1].bindings[0].name, "count");
+    }
+
+    #[test]
+    fn parses_multiple_let_bindings() {
+        let compiler = Compiler::new();
+        let declarations = compiler
+            .parse_bindings(&Source::new("main.as", "let first, second, third = value;"))
+            .unwrap();
+
+        assert_eq!(declarations.len(), 1);
+        assert_eq!(declarations[0].bindings.len(), 3);
+        assert_eq!(declarations[0].bindings[0].name, "first");
+        assert_eq!(declarations[0].bindings[1].name, "second");
+        assert_eq!(declarations[0].bindings[2].name, "third");
+    }
+
+    #[test]
+    fn parses_binding_block() {
+        let compiler = Compiler::new();
+        let declarations = compiler
+            .parse_bindings(&Source::new(
+                "main.as",
+                "let { name string = value, other i32 = 42 };",
+            ))
+            .unwrap();
+
+        assert_eq!(declarations.len(), 1);
+        assert_eq!(declarations[0].kind, BindingKind::Let);
+        assert_eq!(declarations[0].value, None);
+        assert_eq!(declarations[0].bindings.len(), 2);
+        assert_eq!(declarations[0].bindings[0].name, "name");
+        assert_eq!(declarations[0].bindings[1].name, "other");
+        assert!(declarations[0].bindings[0].value.is_some());
+        assert!(declarations[0].bindings[1].value.is_some());
+    }
+
+    #[test]
+    fn parses_underscore_binding() {
+        let compiler = Compiler::new();
+        let declarations = compiler
+            .parse_bindings(&Source::new("main.as", "let _ = value;"))
+            .unwrap();
+
+        assert_eq!(declarations[0].bindings[0].name, "_");
+    }
+
+    #[test]
+    fn reports_binding_parse_errors_with_position() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "let name;");
+        let error = compiler.parse_bindings(&source).unwrap_err();
+
+        assert_eq!(error.stage(), Some(Stage::Parser));
+        assert!(error.to_string().contains("unexpected token"));
     }
 
     #[test]
