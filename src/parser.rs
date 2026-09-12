@@ -596,7 +596,7 @@ impl<'a> Parser<'a> {
             Some(TokenKind::None) => Ok(Expression::None),
             Some(TokenKind::Identifier(name)) => Ok(Expression::Identifier(name)),
             Some(TokenKind::OpenBracket) => self.parse_array(),
-            Some(TokenKind::OpenAngle) => self.parse_vector(),
+            Some(TokenKind::Less) => self.parse_vector(),
             Some(TokenKind::OpenParen) => self.parse_parenthesized(),
             Some(_) => Err(self.error("expected expression")),
             None => Err(self.error("expected expression")),
@@ -626,7 +626,7 @@ impl<'a> Parser<'a> {
 
     fn parse_vector(&mut self) -> Result<Expression, Error> {
         let mut values = Vec::new();
-        if self.peek_kind() == Some(&TokenKind::CloseAngle) {
+        if self.peek_kind() == Some(&TokenKind::Greater) {
             self.advance();
             return Ok(Expression::Vector(values));
         }
@@ -634,13 +634,13 @@ impl<'a> Parser<'a> {
             values.push(self.parse_expression()?);
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
-                if self.peek_kind() == Some(&TokenKind::CloseAngle) {
+                if self.peek_kind() == Some(&TokenKind::Greater) {
                     self.advance();
                     return Ok(Expression::Vector(values));
                 }
                 continue;
             }
-            self.expect(TokenKind::CloseAngle)?;
+            self.expect(TokenKind::Greater)?;
             return Ok(Expression::Vector(values));
         }
     }
