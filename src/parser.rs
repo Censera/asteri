@@ -325,7 +325,6 @@ impl<'a> Parser<'a> {
     fn expect_binding_name(&mut self) -> Result<String, Error> {
         match self.advance() {
             Some(TokenKind::Identifier(name)) => Ok(name),
-            Some(TokenKind::None) if false => unreachable!(),
             Some(_) => Err(self.error("expected binding name")),
             None => Err(self.error("expected binding name")),
         }
