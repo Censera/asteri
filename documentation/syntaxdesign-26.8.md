@@ -96,6 +96,12 @@ for i in items {}
 print name name name;
 print(name name name);
 
+// Names, libraries, flags, and builtins
+// Identifiers are ordinary names. Standard-library functions are identifiers too.
+// An external standard library can provide functions without making them language builtins.
+// @flags attach function settings or compiler-recognized behavior to functions.
+// A builtin exists only when the language itself requires compiler-level support.
+
 // Standard Library
 let this string = "this";
 let that string = "that";
@@ -223,7 +229,7 @@ print square!(4);
 | Type                      | What it is                 |
 | ------------------------- | -------------------------- |
 | `i8`, `i16`, `i32`, `i64` | Signed integers            |
-| `u8`, `u16`, `u32`, `u64` | Unsigned integers          |
+| `u8`, `u16`, `u32`, `u64` | Unsigned integers           |
 | `f32`, `f64`              | Floating point             |
 | `bool`                    | Boolean (`true` / `false`) |
 | `char`                    | Character                  |
@@ -343,3 +349,4 @@ W [main.as][2][8] | Unused variable
 ```
 E [File][Line][Column] | Error message
 E [main.as][2][9] | Expected Semicolon `;`
+```
