@@ -27,14 +27,14 @@ pub enum BindingKind {
 pub struct BindingDeclaration {
     pub kind: BindingKind,
     pub bindings: Vec<Binding>,
-    pub value: Option<Vec<Token>>,
+    pub value: Option<Vec<TokenKind>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binding {
     pub name: String,
-    pub type_tokens: Vec<Token>,
-    pub value: Option<Vec<Token>>,
+    pub type_tokens: Vec<TokenKind>,
+    pub value: Option<Vec<TokenKind>>,
 }
 
 pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
         Ok(bindings)
     }
 
-    fn parse_type_tokens<F>(&mut self, stop: F) -> Vec<Token>
+    fn parse_type_tokens<F>(&mut self, stop: F) -> Vec<TokenKind>
     where
         F: Fn(&TokenKind) -> bool,
     {
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
         tokens
     }
 
-    fn parse_until_statement_end(&mut self) -> Result<Vec<Token>, Error> {
+    fn parse_until_statement_end(&mut self) -> Result<Vec<TokenKind>, Error> {
         let mut tokens = Vec::new();
         let mut depth = 0usize;
 
@@ -246,7 +246,7 @@ impl<'a> Parser<'a> {
         Ok(tokens)
     }
 
-    fn parse_until_any(&mut self, stops: &[TokenKind]) -> Result<Vec<Token>, Error> {
+    fn parse_until_any(&mut self, stops: &[TokenKind]) -> Result<Vec<TokenKind>, Error> {
         let mut tokens = Vec::new();
         let mut depth = 0usize;
 
@@ -325,6 +325,7 @@ impl<'a> Parser<'a> {
     fn expect_binding_name(&mut self) -> Result<String, Error> {
         match self.advance() {
             Some(TokenKind::Identifier(name)) => Ok(name),
+            Some(TokenKind::None) if false => unreachable!(),
             Some(_) => Err(self.error("expected binding name")),
             None => Err(self.error("expected binding name")),
         }
