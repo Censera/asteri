@@ -1,4 +1,4 @@
-use inkwell::context::Context as LLVMContext;
+use an_inkwell::{Context as LLVMContext, Error};
 
 use crate::Module;
 
@@ -13,8 +13,8 @@ impl Context {
         }
     }
 
-    pub fn module(&self, name: &str) -> Module<'_> {
-        Module::from_raw(self, self.raw.create_module(name))
+    pub fn module(&self, name: &str) -> Result<Module<'_>, Error> {
+        self.raw.module(name).map(Module::from_raw)
     }
 
     pub(crate) fn as_raw(&self) -> &LLVMContext {
