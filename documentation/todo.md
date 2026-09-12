@@ -74,7 +74,7 @@
 - [ ] Implement `alloc`.
 - [ ] Implement `free`.
 - [ ] Implement `parse`
-- [ ] Implement `array`/`vector` `push`/`pop`/`len`.
+- [ ] Implement `array`/`vector` push/pop/len.
 
 
 ## Native output
