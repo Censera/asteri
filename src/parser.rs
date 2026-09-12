@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
         let mut bindings = Vec::new();
 
         loop {
-            let name = self.expect_name_or_underscore()?;
+            let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
                 matches!(kind, TokenKind::Comma | TokenKind::EqualSign)
             });
@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
         let mut bindings = Vec::new();
 
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
-            let name = self.expect_name_or_underscore()?;
+            let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
                 matches!(kind, TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace)
             });
@@ -323,10 +323,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect_name_or_underscore(&mut self) -> Result<String, Error> {
+    fn expect_binding_name(&mut self) -> Result<String, Error> {
         match self.advance() {
             Some(TokenKind::Identifier(name)) => Ok(name),
-            Some(kind) => keyword_name(&kind).ok_or_else(|| self.error("expected binding name")),
+            Some(_) => Err(self.error("expected binding name")),
             None => Err(self.error("expected binding name")),
         }
     }
