@@ -24,7 +24,7 @@ pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
     };
     parser.expect(TokenKind::Mod)?;
     Ok(ModuleDeclaration {
-        name: parser.expect_identifier()?,
+        name: parser.expect_name()?,
     })
 }
 
@@ -54,8 +54,15 @@ impl<'a> Parser<'a> {
 
     fn parse_import(&mut self) -> Result<Import, Error> {
         self.expect(TokenKind::Use)?;
-        let module = self.expect_identifier()?;
 
+        if self.peek_kind() == Some(&TokenKind::OpenBrace) {
+            return Ok(Import {
+                module: None,
+                items: self.parse_items()?,
+            });
+        }
+
+        let module = self.expect_name()?;
         let items = if self.peek_kind() == Some(&TokenKind::OpenBrace) {
             self.parse_items()?
         } else {
@@ -73,7 +80,7 @@ impl<'a> Parser<'a> {
 
         let mut items = Vec::new();
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
-            let name = self.expect_identifier()?;
+            let name = self.expect_name()?;
             let nested = if self.peek_kind() == Some(&TokenKind::OpenBrace) {
                 self.parse_items()?
             } else {
@@ -95,13 +102,11 @@ impl<'a> Parser<'a> {
         Ok(items)
     }
 
-    fn expect_identifier(&mut self) -> Result<String, Error> {
-        match self.peek_kind() {
-            Some(TokenKind::Identifier(_)) => match self.advance() {
-                Some(TokenKind::Identifier(name)) => Ok(name),
-                _ => unreachable!(),
-            },
-            _ => Err(self.error("expected identifier")),
+    fn expect_name(&mut self) -> Result<String, Error> {
+        match self.advance() {
+            Some(TokenKind::Identifier(name)) => Ok(name),
+            Some(kind) => keyword_name(&kind).ok_or_else(|| self.error("expected identifier")),
+            None => Err(self.error("expected identifier")),
         }
     }
 
@@ -140,4 +145,44 @@ impl<'a> Parser<'a> {
             message: message.to_owned(),
         }
     }
+}
+
+fn keyword_name(kind: &TokenKind) -> Option<String> {
+    let name = match kind {
+        TokenKind::Mod => "mod",
+        TokenKind::Use => "use",
+        TokenKind::Let => "let",
+        TokenKind::Const => "const",
+        TokenKind::Fn => "fn",
+        TokenKind::Return => "return",
+        TokenKind::If => "if",
+        TokenKind::Elif => "elif",
+        TokenKind::Else => "else",
+        TokenKind::Then => "then",
+        TokenKind::Break => "break",
+        TokenKind::Continue => "continue",
+        TokenKind::Loop => "loop",
+        TokenKind::While => "while",
+        TokenKind::Match => "match",
+        TokenKind::For => "for",
+        TokenKind::In => "in",
+        TokenKind::Print => "print",
+        TokenKind::Eprint => "eprint",
+        TokenKind::Sizeof => "sizeof",
+        TokenKind::Length => "length",
+        TokenKind::Format => "format",
+        TokenKind::Enum => "enum",
+        TokenKind::Struct => "struct",
+        TokenKind::Into => "into",
+        TokenKind::Pub => "pub",
+        TokenKind::Pri => "pri",
+        TokenKind::Type => "type",
+        TokenKind::Embed => "embed",
+        TokenKind::Macro => "macro",
+        TokenKind::True => "true",
+        TokenKind::False => "false",
+        TokenKind::None => "None",
+        _ => return None,
+    };
+    Some(name.to_owned())
 }
