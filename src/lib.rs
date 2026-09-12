@@ -5,6 +5,7 @@ mod function;
 mod handler;
 mod lexer;
 mod module;
+mod parser;
 pub mod shortcuts;
 
 pub use compiler::{Compiler, Source};
@@ -14,10 +15,11 @@ pub use function::Function;
 pub use handler::Handler;
 pub use lexer::{Token, TokenKind};
 pub use module::Module;
+pub use parser::{Import, ImportItem};
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Context, Error, Source, Stage, Token, TokenKind, shortcuts};
+    use super::{Compiler, Context, Error, Import, Source, Stage, Token, TokenKind, shortcuts};
 
     #[test]
     fn creates_i32_function() {
@@ -124,5 +126,68 @@ mod tests {
 
         assert_eq!(error.stage(), Some(Stage::Lexer));
         assert!(error.to_string().contains("[1][13]"));
+    }
+
+    #[test]
+    fn parses_direct_imports() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "use { mygame, standard, memory, engine }");
+        let imports = compiler.parse_imports(&source).unwrap();
+
+        assert_eq!(imports.len(), 1);
+        assert_eq!(imports[0].module, None);
+        assert_eq!(
+            imports[0]
+                .items
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mygame", "standard", "memory", "engine"]
+        );
+    }
+
+    #[test]
+    fn parses_nested_imports() {
+        let compiler = Compiler::new();
+        let source = Source::new(
+            "main.as",
+            "use math { function, variable { that } } use { memory }",
+        );
+        let imports = compiler.parse_imports(&source).unwrap();
+
+        assert_eq!(imports.len(), 2);
+        assert_eq!(imports[0].module.as_deref(), Some("math"));
+        assert_eq!(imports[0].items[0].name, "function");
+        assert_eq!(imports[0].items[1].name, "variable");
+        assert_eq!(imports[0].items[1].items[0].name, "that");
+        assert_eq!(imports[1].module, None);
+        assert_eq!(imports[1].items[0].name, "memory");
+    }
+
+    #[test]
+    fn reports_import_parse_errors_with_position() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "use math { function, }");
+        let error = compiler.parse_imports(&source).unwrap_err();
+
+        assert_eq!(error.stage(), Some(Stage::Parser));
+        assert!(error.to_string().contains("expected identifier"));
+    }
+
+    #[test]
+    fn import_result_is_stable() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "use math { function }");
+        let imports = compiler.parse_imports(&source).unwrap();
+        assert_eq!(
+            imports,
+            vec![Import {
+                module: Some("math".into()),
+                items: vec![super::ImportItem {
+                    name: "function".into(),
+                    items: Vec::new(),
+                }],
+            }]
+        );
     }
 }
