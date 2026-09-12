@@ -14,7 +14,9 @@ impl Context {
     }
 
     pub fn module(&self, name: &str) -> Result<Module<'_>, Error> {
-        self.raw.module(name).map(Module::from_raw)
+        self.raw
+            .module(name)
+            .map(|module| Module::from_raw(self, module))
     }
 
     pub(crate) fn as_raw(&self) -> &LLVMContext {
