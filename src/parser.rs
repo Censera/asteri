@@ -119,6 +119,10 @@ pub enum Expression {
     Boolean(bool),
     None,
     Identifier(String),
+    Array(Vec<Expression>),
+    Vector(Vec<Expression>),
+    Tuple(Vec<Expression>),
+    StringChain(Vec<Expression>),
     Call {
         function: Box<Expression>,
         arguments: Vec<Expression>,
@@ -346,12 +350,40 @@ impl<'a> Parser<'a> {
             Some(TokenKind::Match) => Ok(Statement::Match(self.parse_match()?)),
             Some(TokenKind::Break) => self.parse_break(),
             Some(TokenKind::Continue) => self.parse_continue(),
+            Some(TokenKind::Identifier(name)) if name == "print" => self.parse_print_statement(),
             _ => {
                 let expression = self.parse_expression()?;
                 self.consume(TokenKind::Semicolon);
                 Ok(Statement::Expression(expression))
             }
         }
+    }
+
+    fn parse_print_statement(&mut self) -> Result<Statement, Error> {
+        self.expect(TokenKind::Identifier("print".into()))?;
+        let parenthesized = self.consume(TokenKind::OpenParen);
+        let mut values = Vec::new();
+
+        if parenthesized && self.peek_kind() == Some(&TokenKind::CloseParen) {
+            return Err(self.error("print requires at least one value"));
+        }
+
+        loop {
+            values.push(self.parse_expression()?);
+            if !parenthesized && self.peek_kind() == Some(&TokenKind::Semicolon) {
+                break;
+            }
+            if parenthesized && self.peek_kind() == Some(&TokenKind::CloseParen) {
+                self.advance();
+                break;
+            }
+            if self.peek_kind().is_none() || self.peek_kind() == Some(&TokenKind::CloseBrace) {
+                return Err(self.error("unterminated string chain"));
+            }
+        }
+
+        self.consume(TokenKind::Semicolon);
+        Ok(Statement::Expression(Expression::StringChain(values)))
     }
 
     fn parse_break(&mut self) -> Result<Statement, Error> {
@@ -560,14 +592,75 @@ impl<'a> Parser<'a> {
             Some(TokenKind::False) => Ok(Expression::Boolean(false)),
             Some(TokenKind::None) => Ok(Expression::None),
             Some(TokenKind::Identifier(name)) => Ok(Expression::Identifier(name)),
-            Some(TokenKind::OpenParen) => {
-                let expression = self.parse_expression()?;
-                self.expect(TokenKind::CloseParen)?;
-                Ok(expression)
-            }
+            Some(TokenKind::OpenBracket) => self.parse_array(),
+            Some(TokenKind::OpenAngle) => self.parse_vector(),
+            Some(TokenKind::OpenParen) => self.parse_parenthesized(),
             Some(_) => Err(self.error("expected expression")),
             None => Err(self.error("expected expression")),
         }
+    }
+
+    fn parse_array(&mut self) -> Result<Expression, Error> {
+        let mut values = Vec::new();
+        if self.peek_kind() == Some(&TokenKind::CloseBracket) {
+            self.advance();
+            return Ok(Expression::Array(values));
+        }
+        loop {
+            values.push(self.parse_expression()?);
+            if self.peek_kind() == Some(&TokenKind::Comma) {
+                self.advance();
+                if self.peek_kind() == Some(&TokenKind::CloseBracket) {
+                    self.advance();
+                    return Ok(Expression::Array(values));
+                }
+                continue;
+            }
+            self.expect(TokenKind::CloseBracket)?;
+            return Ok(Expression::Array(values));
+        }
+    }
+
+    fn parse_vector(&mut self) -> Result<Expression, Error> {
+        let mut values = Vec::new();
+        if self.peek_kind() == Some(&TokenKind::CloseAngle) {
+            self.advance();
+            return Ok(Expression::Vector(values));
+        }
+        loop {
+            values.push(self.parse_expression()?);
+            if self.peek_kind() == Some(&TokenKind::Comma) {
+                self.advance();
+                if self.peek_kind() == Some(&TokenKind::CloseAngle) {
+                    self.advance();
+                    return Ok(Expression::Vector(values));
+                }
+                continue;
+            }
+            self.expect(TokenKind::CloseAngle)?;
+            return Ok(Expression::Vector(values));
+        }
+    }
+
+    fn parse_parenthesized(&mut self) -> Result<Expression, Error> {
+        let first = self.parse_expression()?;
+        if self.peek_kind() != Some(&TokenKind::Comma) {
+            self.expect(TokenKind::CloseParen)?;
+            return Ok(first);
+        }
+        let mut values = vec![first];
+        while self.peek_kind() == Some(&TokenKind::Comma) {
+            self.advance();
+            if self.peek_kind() == Some(&TokenKind::CloseParen) {
+                break;
+            }
+            values.push(self.parse_expression()?);
+        }
+        self.expect(TokenKind::CloseParen)?;
+        if values.len() < 2 {
+            return Err(self.error("tuple requires at least two values"));
+        }
+        Ok(Expression::Tuple(values))
     }
 
     fn binary_operator(&self) -> Option<(BinaryOperator, u8)> {
@@ -896,4 +989,138 @@ fn keyword_name(kind: &TokenKind) -> Option<String> {
         _ => return None,
     };
     Some(name.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_functions, BinaryOperator, Expression, Statement};
+    use crate::lexer::tokenize;
+
+    fn parse(source: &str) -> Vec<Statement> {
+        let tokens = tokenize(source).unwrap();
+        parse_functions(&tokens).unwrap().remove(0).body.statements
+    }
+
+    #[test]
+    fn parses_string_chains() {
+        assert_eq!(
+            parse(r#"fn main() { print name value 42 \"done\" 'x' true; print(name value 42); }"#),
+            vec![
+                Statement::Expression(Expression::StringChain(vec![
+                    Expression::Identifier("name".into()),
+                    Expression::Identifier("value".into()),
+                    Expression::Integer("42".into()),
+                    Expression::String("done".into()),
+                    Expression::Character('x'),
+                    Expression::Boolean(true),
+                ])),
+                Statement::Expression(Expression::StringChain(vec![
+                    Expression::Identifier("name".into()),
+                    Expression::Identifier("value".into()),
+                    Expression::Integer("42".into()),
+                ])),
+            ]
+        );
+    }
+
+    #[test]
+    fn string_chain_preserves_expression_values() {
+        assert_eq!(
+            parse(r#"fn main() { let value = 2; print \"value:\" value + 1; }"#)[1],
+            Statement::Expression(Expression::StringChain(vec![
+                Expression::String("value:".into()),
+                Expression::Binary {
+                    left: Box::new(Expression::Identifier("value".into())),
+                    operator: BinaryOperator::Add,
+                    right: Box::new(Expression::Integer("1".into())),
+                },
+            ]))
+        );
+    }
+
+    #[test]
+    fn rejects_empty_string_chain() {
+        let tokens = tokenize("fn main() { print; }").unwrap();
+        assert!(parse_functions(&tokens).is_err());
+    }
+
+    #[test]
+    fn parses_arrays() {
+        assert_eq!(
+            parse("fn main() { [1, 2, 3]; }"),
+            vec![Statement::Expression(Expression::Array(vec![
+                Expression::Integer("1".into()),
+                Expression::Integer("2".into()),
+                Expression::Integer("3".into()),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_vectors() {
+        assert_eq!(
+            parse("fn main() { <1, 2, 3>; }"),
+            vec![Statement::Expression(Expression::Vector(vec![
+                Expression::Integer("1".into()),
+                Expression::Integer("2".into()),
+                Expression::Integer("3".into()),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_tuples() {
+        assert_eq!(
+            parse("fn main() { (1, 2, 3); }"),
+            vec![Statement::Expression(Expression::Tuple(vec![
+                Expression::Integer("1".into()),
+                Expression::Integer("2".into()),
+                Expression::Integer("3".into()),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_parenthesized_expression() {
+        assert_eq!(
+            parse("fn main() { (1 + 2) * 3; }"),
+            vec![Statement::Expression(Expression::Binary {
+                left: Box::new(Expression::Binary {
+                    left: Box::new(Expression::Integer("1".into())),
+                    operator: BinaryOperator::Add,
+                    right: Box::new(Expression::Integer("2".into())),
+                }),
+                operator: BinaryOperator::Multiply,
+                right: Box::new(Expression::Integer("3".into())),
+            })]
+        );
+    }
+
+    #[test]
+    fn parses_nested_collections() {
+        assert_eq!(
+            parse("fn main() { [[1, 2], [3, 4]]; }"),
+            vec![Statement::Expression(Expression::Array(vec![
+                Expression::Array(vec![
+                    Expression::Integer("1".into()),
+                    Expression::Integer("2".into()),
+                ]),
+                Expression::Array(vec![
+                    Expression::Integer("3".into()),
+                    Expression::Integer("4".into()),
+                ]),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_empty_collections() {
+        assert_eq!(
+            parse("fn main() { []; <>; }"),
+            vec![
+                Statement::Expression(Expression::Array(Vec::new())),
+                Statement::Expression(Expression::Vector(Vec::new())),
+            ]
+        );
+    }
 }
