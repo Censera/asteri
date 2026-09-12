@@ -7,16 +7,17 @@ pub struct Function<'ctx> {
 }
 
 impl<'ctx> Function<'ctx> {
-    pub fn void(module: &Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
+    pub fn void(module: &'ctx Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
         let context = module.context().as_raw();
-        let function_type = Type::function(&Type::void(context), &[], false)?;
+        let return_type = Type::void(context);
+        let function_type = Type::function(&return_type, &[], false)?;
         module
             .as_raw()
             .function(name, &function_type)
             .map(Self::from_raw)
     }
 
-    pub fn i32(module: &Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
+    pub fn i32(module: &'ctx Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
         let context = module.context().as_raw();
         let return_type = Type::i32(context);
         let function_type = Type::function(&return_type, &[], false)?;
@@ -26,7 +27,7 @@ impl<'ctx> Function<'ctx> {
             .map(Self::from_raw)
     }
 
-    pub fn i64(module: &Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
+    pub fn i64(module: &'ctx Module<'ctx>, name: &str) -> Result<Self, an_inkwell::Error> {
         let context = module.context().as_raw();
         let return_type = Type::i64(context);
         let function_type = Type::function(&return_type, &[], false)?;
