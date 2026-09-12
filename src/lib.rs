@@ -123,6 +123,6 @@ mod tests {
         let error = compiler.tokenize(&source).unwrap_err();
 
         assert_eq!(error.stage(), Some(Stage::Lexer));
-        assert!(error.to_string().contains("[1][12]"));
+        assert!(error.to_string().contains("[1][13]"));
     }
 }
