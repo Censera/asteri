@@ -3,11 +3,14 @@
 ## Main features
 
 ```rs
+
+// main.astery
+
 // Importing
 use standard
 use { memory, engine }
-use math:variable:that
-use math:{ function, variable:that }
+use math { variable { that }
+use math { function, variable { that } }
 
 // let
 let name = value;
@@ -30,6 +33,7 @@ const {
 };
 
 // fn
+fn main() {}
 fn name() {}
 fn name() { return }
 fn type name() {
