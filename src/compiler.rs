@@ -1,4 +1,5 @@
 use crate::error::{Error, Stage};
+use crate::lexer::{Token, tokenize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
@@ -31,7 +32,12 @@ impl Compiler {
         Self
     }
 
-    pub fn compile(&self, _source: Source) -> Result<(), Error> {
-        Err(Error::StageNotImplemented(Stage::Lexer))
+    pub fn tokenize(&self, source: &Source) -> Result<Vec<Token>, Error> {
+        tokenize(source.text())
+    }
+
+    pub fn compile(&self, source: Source) -> Result<(), Error> {
+        self.tokenize(&source)?;
+        Err(Error::StageNotImplemented(Stage::Parser))
     }
 }
