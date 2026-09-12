@@ -82,7 +82,8 @@ pub enum TokenKind {
     LessEqual,
     NotEqual,
     Ellipsis,
-    Chain,
+    Range,
+    RangeInclusive,
     Dot,
     Add,
     Subtract,
@@ -278,8 +279,10 @@ impl<'src> Lexer<'src> {
                 if self.matches(b'.') {
                     if self.matches(b'.') {
                         Ok(self.simple(TokenKind::Ellipsis, line, column))
+                    } else if self.matches(b'=') {
+                        Ok(self.simple(TokenKind::RangeInclusive, line, column))
                     } else {
-                        Ok(self.simple(TokenKind::Chain, line, column))
+                        Ok(self.simple(TokenKind::Range, line, column))
                     }
                 } else {
                     Ok(self.simple(TokenKind::Dot, line, column))
