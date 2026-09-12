@@ -996,8 +996,8 @@ fn keyword_name(kind: &TokenKind) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_functions, BinaryOperator, Expression, Statement};
-    use crate::{lexer::tokenize, Source};
+    use super::{BinaryOperator, Expression, Statement, parse_functions};
+    use crate::{Source, lexer::tokenize};
 
     fn parse(source: &str) -> Vec<Statement> {
         let tokens = tokenize(source).unwrap();
