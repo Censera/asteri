@@ -53,7 +53,10 @@ pub struct Parameter {
 }
 
 pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
-    let mut parser = Parser { tokens, position: 0 };
+    let mut parser = Parser {
+        tokens,
+        position: 0,
+    };
     parser.expect(TokenKind::Mod)?;
     Ok(ModuleDeclaration {
         name: parser.expect_name()?,
@@ -61,15 +64,27 @@ pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
 }
 
 pub fn parse_imports(tokens: &[Token]) -> Result<Vec<Import>, Error> {
-    Parser { tokens, position: 0 }.parse_imports()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_imports()
 }
 
 pub fn parse_bindings(tokens: &[Token]) -> Result<Vec<BindingDeclaration>, Error> {
-    Parser { tokens, position: 0 }.parse_bindings()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_bindings()
 }
 
 pub fn parse_functions(tokens: &[Token]) -> Result<Vec<FunctionDeclaration>, Error> {
-    Parser { tokens, position: 0 }.parse_functions()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_functions()
 }
 
 struct Parser<'a> {
@@ -143,7 +158,11 @@ impl<'a> Parser<'a> {
             (bindings, Some(value))
         };
         self.consume(TokenKind::Semicolon);
-        Ok(BindingDeclaration { kind, bindings, value })
+        Ok(BindingDeclaration {
+            kind,
+            bindings,
+            value,
+        })
     }
 
     fn parse_function(&mut self) -> Result<FunctionDeclaration, Error> {
@@ -187,7 +206,10 @@ impl<'a> Parser<'a> {
         loop {
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis)
+                matches!(
+                    kind,
+                    TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis
+                )
             });
             if type_tokens.is_empty() && self.peek_kind() != Some(&TokenKind::Ellipsis) {
                 return Err(self.error("expected parameter type"));
@@ -224,8 +246,13 @@ impl<'a> Parser<'a> {
         let mut bindings = Vec::new();
         loop {
             let name = self.expect_binding_name()?;
-            let type_tokens = self.parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
-            bindings.push(Binding { name, type_tokens, value: None });
+            let type_tokens = self
+                .parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
+            bindings.push(Binding {
+                name,
+                type_tokens,
+                value: None,
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
                 continue;
@@ -241,11 +268,18 @@ impl<'a> Parser<'a> {
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace)
+                matches!(
+                    kind,
+                    TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace
+                )
             });
             self.expect(TokenKind::EqualSign)?;
             let value = self.parse_until_any(&[TokenKind::Comma, TokenKind::CloseBrace])?;
-            bindings.push(Binding { name, type_tokens, value: Some(value) });
+            bindings.push(Binding {
+                name,
+                type_tokens,
+                value: Some(value),
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
             } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {
@@ -366,7 +400,10 @@ impl<'a> Parser<'a> {
             } else {
                 Vec::new()
             };
-            items.push(ImportItem { name, items: nested });
+            items.push(ImportItem {
+                name,
+                items: nested,
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
             } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {

@@ -310,22 +310,37 @@ mod tests {
         assert_eq!(functions[0].name, "name");
         assert!(functions[0].return_type.is_empty());
         assert!(functions[0].parameters.is_empty());
-        assert_eq!(functions[1].return_type, vec![TokenKind::Identifier("i32".into())]);
-        assert_eq!(functions[1].body, vec![TokenKind::Return, TokenKind::Integer("0".into())]);
+        assert_eq!(
+            functions[1].return_type,
+            vec![TokenKind::Identifier("i32".into())]
+        );
+        assert_eq!(
+            functions[1].body,
+            vec![TokenKind::Return, TokenKind::Integer("0".into())]
+        );
         assert_eq!(functions[2].parameters.len(), 1);
         assert_eq!(functions[2].parameters[0].name, "value");
-        assert_eq!(functions[2].parameters[0].type_tokens, vec![TokenKind::Identifier("i32".into())]);
+        assert_eq!(
+            functions[2].parameters[0].type_tokens,
+            vec![TokenKind::Identifier("i32".into())]
+        );
     }
 
     #[test]
     fn parses_function_flags() {
         let compiler = Compiler::new();
-        let source = Source::new("main.as", "@striped @lossely fn [string] name(value string, ...) {}");
+        let source = Source::new(
+            "main.as",
+            "@striped @lossely fn [string] name(value string, ...) {}",
+        );
         let functions = compiler.parse_functions(&source).unwrap();
 
         assert_eq!(functions.len(), 1);
         assert_eq!(functions[0].flags, vec!["striped", "lossely"]);
-        assert_eq!(functions[0].return_type, vec![TokenKind::Identifier("string".into())]);
+        assert_eq!(
+            functions[0].return_type,
+            vec![TokenKind::Identifier("string".into())]
+        );
         assert_eq!(functions[0].parameters.len(), 1);
         assert!(functions[0].body.is_empty());
     }
