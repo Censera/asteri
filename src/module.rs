@@ -8,8 +8,7 @@ pub struct Module<'ctx> {
 }
 
 impl<'ctx> Module<'ctx> {
-    pub(crate) fn from_raw(raw: LLVMModule<'ctx>) -> Self {
-        let context = raw.context();
+    pub(crate) fn from_raw(context: &'ctx Context, raw: LLVMModule<'ctx>) -> Self {
         Self { context, raw }
     }
 
