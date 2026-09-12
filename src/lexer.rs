@@ -177,8 +177,22 @@ impl<'src> Lexer<'src> {
             b'[' => Ok(Token::new(TokenKind::OpenBracket, line, column)),
             b']' => Ok(Token::new(TokenKind::CloseBracket, line, column)),
             b'<' => self.operator(TokenKind::Less, TokenKind::LessEqual, b'=', line, column),
-            b'>' => self.operator(TokenKind::Greater, TokenKind::GreaterEqual, b'=', line, column),
-            b'+' => self.double_operator(TokenKind::Increment, TokenKind::AddAssign, TokenKind::Add, b'+', b'=', line, column),
+            b'>' => self.operator(
+                TokenKind::Greater,
+                TokenKind::GreaterEqual,
+                b'=',
+                line,
+                column,
+            ),
+            b'+' => self.double_operator(
+                TokenKind::Increment,
+                TokenKind::AddAssign,
+                TokenKind::Add,
+                b'+',
+                b'=',
+                line,
+                column,
+            ),
             b'-' => {
                 if self.matches(b'>') {
                     Ok(Token::new(TokenKind::Arrow, line, column))
@@ -190,8 +204,24 @@ impl<'src> Lexer<'src> {
                     Ok(Token::new(TokenKind::Subtract, line, column))
                 }
             }
-            b'*' => self.double_operator(TokenKind::MulAssign, TokenKind::MulAssign, TokenKind::Multiply, b'*', b'=', line, column),
-            b'/' => self.double_operator(TokenKind::DivAssign, TokenKind::DivAssign, TokenKind::Divide, b'/', b'=', line, column),
+            b'*' => self.double_operator(
+                TokenKind::MulAssign,
+                TokenKind::MulAssign,
+                TokenKind::Multiply,
+                b'*',
+                b'=',
+                line,
+                column,
+            ),
+            b'/' => self.double_operator(
+                TokenKind::DivAssign,
+                TokenKind::DivAssign,
+                TokenKind::Divide,
+                b'/',
+                b'=',
+                line,
+                column,
+            ),
             b'=' => {
                 if self.matches(b'=') {
                     Ok(Token::new(TokenKind::Equal, line, column))
@@ -333,7 +363,11 @@ impl<'src> Lexer<'src> {
             Some(b'\\') => Ok('\\'),
             Some(b'"') => Ok('"'),
             Some(b'\'') => Ok('\''),
-            Some(byte) => Err(self.lex_error(line, column, &format!("unknown escape `\\{}`", byte as char))),
+            Some(byte) => Err(self.lex_error(
+                line,
+                column,
+                &format!("unknown escape `\\{}`", byte as char),
+            )),
             None => Err(self.lex_error(line, column, "unterminated escape sequence")),
         }
     }
