@@ -20,8 +20,8 @@ pub use parser::{Binding, BindingDeclaration, BindingKind, Import, ImportItem, M
 #[cfg(test)]
 mod tests {
     use super::{
-        BindingKind, Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage,
-        Token, TokenKind, shortcuts,
+        BindingKind, Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source,
+        Stage, Token, TokenKind, shortcuts,
     };
 
     #[test]
