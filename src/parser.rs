@@ -74,16 +74,21 @@ impl<'a> Parser<'a> {
     }
 
     fn expect_identifier(&mut self) -> Result<String, Error> {
-        match self.advance_kind() {
-            Some(TokenKind::Identifier(name)) => Ok(name),
+        match self.peek_kind() {
+            Some(TokenKind::Identifier(_)) => match self.advance() {
+                Some(TokenKind::Identifier(name)) => Ok(name),
+                _ => unreachable!(),
+            },
             _ => Err(self.error("expected identifier")),
         }
     }
 
     fn expect(&mut self, expected: TokenKind) -> Result<(), Error> {
-        match self.advance_kind() {
-            Some(kind) if kind == expected => Ok(()),
-            _ => Err(self.error("unexpected token")),
+        if self.peek_kind() == Some(&expected) {
+            self.advance();
+            Ok(())
+        } else {
+            Err(self.error("unexpected token"))
         }
     }
 
@@ -95,10 +100,6 @@ impl<'a> Parser<'a> {
         let kind = self.tokens.get(self.position)?.kind().clone();
         self.position += 1;
         Some(kind)
-    }
-
-    fn advance_kind(&mut self) -> Option<TokenKind> {
-        self.advance()
     }
 
     fn error(&self, message: &str) -> Error {
