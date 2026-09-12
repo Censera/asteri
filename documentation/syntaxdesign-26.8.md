@@ -340,6 +340,39 @@ let (a, b) = (b, a);
 ==, >=, <=, !=
 ```
 
+## Union
+
+```rs
+// Declaration
+type Name = Union::<[type], [type]>;
+
+// Aliases
+type Result::<[type], [type]> = Union:<[type], [type]>;
+type Optional::<[type]> = Union:<[type], None>;
+
+// Construction
+// Inferred from value's type
+// No explicit tag
+let r Result::<i64, string> = 5;
+let r Result::<i64, string> = "division by zero";
+
+// Matching by type
+// Not by handpicked constructor name
+match r {
+    i64(value) {
+        print "got" value;
+    },
+    string(message) {
+        eprint message;
+    }
+}
+
+fn Result::<i64, string> divide(a i64, b i64) {
+    return "division by zero" if b == 0;
+    return a / b
+}
+```
+
 ## Outputs
 
 ### Success
