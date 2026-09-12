@@ -19,7 +19,7 @@
 ## Parser
 
 - [x] Parse imports.
-- [ ] Parse `let` and `const` bindings.
+- [x] Parse `let` and `const` bindings.
 - [ ] Parse functions and overloads.
 - [ ] Parse blocks and expressions.
 - [ ] Parse `if`, `elif`, `else`, `loop`, `while`, `for`, and `match`.
