@@ -10,6 +10,7 @@
 mod mygame
 
 // Importing
+use library
 use { mygame, standard, memory, engine }
 use math { variable { that } }
 use math { function, variable { that } }
@@ -36,6 +37,7 @@ const {
 
 // fn
 fn name() {}
+fn main() {}
 fn name() { return }
 fn [type] name() {
     return 0
@@ -94,6 +96,7 @@ for i in items {}
 // Name can be any primitive type
 
 print name name name;
+print name..name..name.."\n";
 print(name name name);
 
 // Names, libraries, flags, and builtins
@@ -159,12 +162,15 @@ into Name {
 print Name.name();
 
 // User's types init using the type keyword
-type Point i64;
+type Point i64
+let point Point = Point { 3.0, 4.0 };
+let point Point = Point { x = 3.0, y = 4.0 };
 
-type Node struct {};
+type Node struct {}
 into Node {
     fn Point new() {}
 }
+
 let node Node = Node.new();
 
 embed C {
