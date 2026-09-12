@@ -3,6 +3,7 @@ mod context;
 mod error;
 mod function;
 mod handler;
+mod lexer;
 mod module;
 pub mod shortcuts;
 
@@ -11,11 +12,12 @@ pub use context::Context;
 pub use error::{Error, Stage};
 pub use function::Function;
 pub use handler::Handler;
+pub use lexer::{Token, TokenKind};
 pub use module::Module;
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Context, Error, Source, Stage, shortcuts};
+    use super::{Compiler, Context, Error, Source, Stage, TokenKind, shortcuts};
 
     #[test]
     fn creates_i32_function() {
@@ -44,11 +46,11 @@ mod tests {
     }
 
     #[test]
-    fn compiler_reports_unimplemented_stage() {
+    fn compiler_reports_parser_as_next_stage() {
         let compiler = Compiler::new();
         let error = compiler.compile(Source::new("test.astery", "fn main() {}"));
 
-        assert_eq!(error.unwrap_err().stage(), Some(Stage::Lexer));
+        assert_eq!(error.unwrap_err().stage(), Some(Stage::Parser));
     }
 
     #[test]
@@ -64,5 +66,63 @@ mod tests {
         let error = Error::from(std::io::Error::other("test"));
 
         assert_eq!(error.stage(), None);
+    }
+
+    #[test]
+    fn tokenizes_basic_function() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "fn main() { return }");
+        let tokens = compiler.tokenize(&source).unwrap();
+
+        assert_eq!(
+            tokens.iter().map(Token::kind).collect::<Vec<_>>(),
+            vec![
+                &TokenKind::Fn,
+                &TokenKind::Identifier("main".into()),
+                &TokenKind::OpenParen,
+                &TokenKind::CloseParen,
+                &TokenKind::OpenBrace,
+                &TokenKind::Return,
+                &TokenKind::CloseBrace,
+            ]
+        );
+    }
+
+    #[test]
+    fn tokenizes_literals_and_operators() {
+        let compiler = Compiler::new();
+        let source = Source::new(
+            "main.as",
+            "let value = 42 + 1.5; let ok = true && false; let c = 'x';",
+        );
+        let tokens = compiler.tokenize(&source).unwrap();
+        let kinds = tokens.iter().map(Token::kind).collect::<Vec<_>>();
+
+        assert!(kinds.contains(&&TokenKind::Integer("42".into())));
+        assert!(kinds.contains(&&TokenKind::Float("1.5".into())));
+        assert!(kinds.contains(&&TokenKind::And));
+        assert!(kinds.contains(&&TokenKind::Character('x')));
+    }
+
+    #[test]
+    fn tokenizes_labels_and_function_flags() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "@striped loop 'outer {} break 'outer");
+        let tokens = compiler.tokenize(&source).unwrap();
+        let kinds = tokens.iter().map(Token::kind).collect::<Vec<_>>();
+
+        assert!(kinds.contains(&&TokenKind::At));
+        assert!(kinds.contains(&&TokenKind::Identifier("striped".into())));
+        assert!(kinds.contains(&&TokenKind::Label("outer".into())));
+    }
+
+    #[test]
+    fn reports_lexical_errors_with_position() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "fn main() { \"unterminated }");
+        let error = compiler.tokenize(&source).unwrap_err();
+
+        assert_eq!(error.stage(), Some(Stage::Lexer));
+        assert!(error.to_string().contains("[1][12]"));
     }
 }

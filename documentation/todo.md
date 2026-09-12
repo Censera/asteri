@@ -9,12 +9,12 @@
 
 ## Lexer
 
-- [ ] Tokenize identifiers and keywords.
-- [ ] Tokenize primitive literals.
-- [ ] Tokenize strings and characters.
-- [ ] Tokenize operators and punctuation.
-- [ ] Tokenize visibility and function flags.
-- [ ] Tokenize pointer and cast syntax.
+- [x] Tokenize identifiers and keywords.
+- [x] Tokenize primitive literals.
+- [x] Tokenize strings and characters.
+- [x] Tokenize operators and punctuation.
+- [x] Tokenize visibility and function flags.
+- [x] Tokenize pointer and cast syntax.
 
 ## Parser
 
