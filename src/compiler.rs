@@ -28,21 +28,6 @@ impl Source {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StringChain {
-    parts: Vec<TokenKind>,
-}
-
-impl StringChain {
-    pub fn new(parts: Vec<TokenKind>) -> Self {
-        Self { parts }
-    }
-
-    pub fn parts(&self) -> &[TokenKind] {
-        &self.parts
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct Compiler;
 
@@ -75,7 +60,7 @@ impl Compiler {
         parse_functions(&tokens)
     }
 
-    pub fn parse_string_chain(&self, source: &Source) -> Result<StringChain, Error> {
+    pub fn parse_string_chain(&self, source: &Source) -> Result<Vec<TokenKind>, Error> {
         let tokens = self.tokenize(source)?;
         parse_string_chain(&tokens)
     }
@@ -86,7 +71,7 @@ impl Compiler {
     }
 }
 
-fn parse_string_chain(tokens: &[Token]) -> Result<StringChain, Error> {
+fn parse_string_chain(tokens: &[Token]) -> Result<Vec<TokenKind>, Error> {
     if tokens.is_empty() {
         return Err(Error::Parse {
             line: 1,
@@ -107,7 +92,7 @@ fn parse_string_chain(tokens: &[Token]) -> Result<StringChain, Error> {
         parts.push(token.kind().clone());
     }
 
-    Ok(StringChain::new(parts))
+    Ok(parts)
 }
 
 fn is_string_chain_part(kind: &TokenKind) -> bool {
@@ -126,24 +111,24 @@ fn is_string_chain_part(kind: &TokenKind) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Source, StringChain};
-    use crate::TokenKind;
+    use super::{Compiler, Source};
+    use crate::{Stage, TokenKind};
 
     #[test]
     fn parses_string_chain() {
         let compiler = Compiler::new();
-        let chain = compiler
+        let parts = compiler
             .parse_string_chain(&Source::new("test.as", "Hello 42 \"world\" true"))
             .unwrap();
 
         assert_eq!(
-            chain,
-            StringChain::new(vec![
+            parts,
+            vec![
                 TokenKind::Identifier("Hello".into()),
                 TokenKind::Integer("42".into()),
                 TokenKind::String("world".into()),
                 TokenKind::True,
-            ])
+            ]
         );
     }
 
@@ -154,6 +139,6 @@ mod tests {
             .parse_string_chain(&Source::new("test.as", "hello + world"))
             .unwrap_err();
 
-        assert_eq!(error.stage(), Some(crate::Stage::Parser));
+        assert_eq!(error.stage(), Some(Stage::Parser));
     }
 }
