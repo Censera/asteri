@@ -23,7 +23,7 @@
 - [x] Parse functions and overloads.
 - [x] Parse blocks and expressions.
 - [x] Parse `if`, `elif`, `else`, `loop`, `while`, `for`, and `match`.
-- [ ] Parse `break` and `continue` with labels.
+- [x] Parse `break` and `continue` with labels.
 - [ ] Parse string chains.
 - [ ] Parse arrays, vectors, and tuples.
 - [ ] Parse enums.
