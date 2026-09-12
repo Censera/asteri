@@ -16,6 +16,11 @@ pub enum Error {
         column: usize,
         message: String,
     },
+    Parse {
+        line: usize,
+        column: usize,
+        message: String,
+    },
     StageNotImplemented(Stage),
 }
 
@@ -24,6 +29,7 @@ impl Error {
         match self {
             Self::Io(_) => None,
             Self::Lex { .. } => Some(Stage::Lexer),
+            Self::Parse { .. } => Some(Stage::Parser),
             Self::StageNotImplemented(stage) => Some(*stage),
         }
     }
@@ -34,6 +40,11 @@ impl fmt::Display for Error {
         match self {
             Self::Io(error) => write!(f, "I/O error: {error}"),
             Self::Lex {
+                line,
+                column,
+                message,
+            } => write!(f, "E [{line}][{column}] | {message}"),
+            Self::Parse {
                 line,
                 column,
                 message,
