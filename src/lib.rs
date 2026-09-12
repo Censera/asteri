@@ -15,7 +15,10 @@ pub use function::Function;
 pub use handler::Handler;
 pub use lexer::{Token, TokenKind};
 pub use module::Module;
-pub use parser::{Binding, BindingDeclaration, BindingKind, Import, ImportItem, ModuleDeclaration};
+pub use parser::{
+    Binding, BindingDeclaration, BindingKind, FunctionDeclaration, Import, ImportItem,
+    ModuleDeclaration, Parameter,
+};
 
 #[cfg(test)]
 mod tests {
@@ -292,6 +295,50 @@ mod tests {
             .unwrap();
 
         assert_eq!(declarations[0].bindings[0].name, "_");
+    }
+
+    #[test]
+    fn parses_functions_and_overloads() {
+        let compiler = Compiler::new();
+        let source = Source::new(
+            "main.as",
+            "fn name() {} fn [i32] name() { return 0 } fn [i32] name(value i32) {}",
+        );
+        let functions = compiler.parse_functions(&source).unwrap();
+
+        assert_eq!(functions.len(), 3);
+        assert_eq!(functions[0].name, "name");
+        assert!(functions[0].return_type.is_empty());
+        assert!(functions[0].parameters.is_empty());
+        assert_eq!(functions[1].return_type, vec![TokenKind::Identifier("i32".into())]);
+        assert_eq!(functions[1].body, vec![TokenKind::Return, TokenKind::Integer("0".into())]);
+        assert_eq!(functions[2].parameters.len(), 1);
+        assert_eq!(functions[2].parameters[0].name, "value");
+        assert_eq!(functions[2].parameters[0].type_tokens, vec![TokenKind::Identifier("i32".into())]);
+    }
+
+    #[test]
+    fn parses_function_flags() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "@striped @lossely fn [string] name(value string, ...) {}");
+        let functions = compiler.parse_functions(&source).unwrap();
+
+        assert_eq!(functions.len(), 1);
+        assert_eq!(functions[0].flags, vec!["striped", "lossely"]);
+        assert_eq!(functions[0].return_type, vec![TokenKind::Identifier("string".into())]);
+        assert_eq!(functions[0].parameters.len(), 1);
+        assert!(functions[0].body.is_empty());
+    }
+
+    #[test]
+    fn reports_function_parse_errors() {
+        let compiler = Compiler::new();
+        let error = compiler
+            .parse_functions(&Source::new("main.as", "fn name(value) {}"))
+            .unwrap_err();
+
+        assert_eq!(error.stage(), Some(Stage::Parser));
+        assert!(error.to_string().contains("expected parameter type"));
     }
 
     #[test]
