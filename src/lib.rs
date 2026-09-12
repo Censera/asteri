@@ -122,6 +122,24 @@ mod tests {
     }
 
     #[test]
+    fn tokenizes_standard_library_names_as_identifiers() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "print eprint sizeof length format");
+        let tokens = compiler.tokenize(&source).unwrap();
+
+        assert_eq!(
+            tokens.iter().map(Token::kind).collect::<Vec<_>>(),
+            vec![
+                &TokenKind::Identifier("print".into()),
+                &TokenKind::Identifier("eprint".into()),
+                &TokenKind::Identifier("sizeof".into()),
+                &TokenKind::Identifier("length".into()),
+                &TokenKind::Identifier("format".into()),
+            ]
+        );
+    }
+
+    #[test]
     fn reports_lexical_errors_with_position() {
         let compiler = Compiler::new();
         let source = Source::new("main.as", "fn main() { \"unterminated }");
