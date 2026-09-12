@@ -15,11 +15,11 @@ pub use function::Function;
 pub use handler::Handler;
 pub use lexer::{Token, TokenKind};
 pub use module::Module;
-pub use parser::{Import, ImportItem};
+pub use parser::{Import, ImportItem, ModuleDeclaration};
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Context, Error, Import, Source, Stage, Token, TokenKind, shortcuts};
+    use super::{Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage, Token, TokenKind, shortcuts};
 
     #[test]
     fn creates_i32_function() {
@@ -165,6 +165,30 @@ mod tests {
     }
 
     #[test]
+    fn parses_bare_import() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "use standard");
+        let imports = compiler.parse_imports(&source).unwrap();
+
+        assert_eq!(
+            imports,
+            vec![Import {
+                module: Some("standard".into()),
+                items: Vec::new(),
+            }]
+        );
+    }
+
+    #[test]
+    fn parses_module_declaration() {
+        let compiler = Compiler::new();
+        let source = Source::new("main.as", "mod mygame");
+        let module = compiler.parse_module(&source).unwrap();
+
+        assert_eq!(module, ModuleDeclaration { name: "mygame".into() });
+    }
+
+    #[test]
     fn reports_import_parse_errors_with_position() {
         let compiler = Compiler::new();
         let source = Source::new("main.as", "use math { function, 42 }");
@@ -183,7 +207,7 @@ mod tests {
             imports,
             vec![Import {
                 module: Some("math".into()),
-                items: vec![super::ImportItem {
+                items: vec![ImportItem {
                     name: "function".into(),
                     items: Vec::new(),
                 }],
