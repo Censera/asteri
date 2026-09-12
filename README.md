@@ -1,63 +1,21 @@
-# astery*
+# astery
 
-A domain-specific programming language designed for game development. It is compiled and statically typed. This project aims to provide an all-in-one environment for developers who like to work without separate engines and wrapper libraries. 
+A statically typed programming language for game development.
 
-## Hello World
+This repository is being rebuilt for **26.8** after a language redesign.
 
-```rust
-fn main() {
-    let hello = "Hello world!";
-    print hello;
-}
-```
+## Current state
 
-Output:
+The compiler implementation is intentionally minimal while the new frontend is being built.
 
-```text
-Hello world!
-```
+The 26.8 syntax design is in [`documentation/syntaxdesign-26.8.md`](documentation/syntaxdesign-26.8.md).
 
-## Installation
+## Build
 
 ```bash
-cargo install --git https://github.com/Censera/astery
+cargo build
 ```
-
-## Running Code
-
-```bash
-astery run test/hello.ast
-```
-
-## Language Overview
-
-Functions:
-
-```rust
-fn greet(name: str) {
-    print name;
-}
-```
-
-Variables:
-
-```rust
-let score = 100;
-```
-
-Control Flow:
-
-```rust
-if score > 50 {
-    print "Pass";
-}
-```
-
-## Documentation
-
-- Getting Started
-- Progress & Roadmap
 
 ## License
 
-[Apache License](https://github.com/Censera/astery/blob/entry/LICENSE)
+[Apache License](LICENSE)
