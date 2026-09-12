@@ -1,4 +1,4 @@
-use inkwell::module::Module as LLVMModule;
+use an_inkwell::{Module as LLVMModule, Type};
 
 use crate::{Context, Function};
 
@@ -8,7 +8,8 @@ pub struct Module<'ctx> {
 }
 
 impl<'ctx> Module<'ctx> {
-    pub(crate) fn from_raw(context: &'ctx Context, raw: LLVMModule<'ctx>) -> Self {
+    pub(crate) fn from_raw(raw: LLVMModule<'ctx>) -> Self {
+        let context = raw.context();
         Self { context, raw }
     }
 
@@ -16,12 +17,15 @@ impl<'ctx> Module<'ctx> {
         self.context
     }
 
-    pub fn function(&self, name: &str) -> Option<Function<'ctx>> {
-        self.raw.get_function(name).map(Function::from_raw)
+    pub fn function(&self, name: &str) -> Result<Function<'ctx>, an_inkwell::Error> {
+        let function_type = Type::void(self.context.as_raw());
+        self.raw
+            .function(name, &function_type)
+            .map(Function::from_raw)
     }
 
     pub fn as_ir(&self) -> String {
-        self.raw.print_to_string().to_string()
+        self.raw.as_ir()
     }
 
     pub(crate) fn as_raw(&self) -> &LLVMModule<'ctx> {
