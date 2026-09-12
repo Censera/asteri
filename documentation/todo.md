@@ -34,7 +34,7 @@
 - [x] Parse shortened conditional statements and expressions.
 - [x] Parse `break` and `continue` with labels.
 - [x] Parse range and inclusive-range expressions.
-- [ ] Parse string chains.
+- [x] Parse string chains.
 - [x] Parse arrays, vectors, and tuples.
 - [ ] Parse enums and enum variants.
 - [ ] Parse structs and fields.
@@ -107,4 +107,3 @@
 - [ ] Evaluate macros as a language feature boundary.
 - [ ] Evaluate lambdas.
 - [ ] Evaluate thunks.
-- [ ] Evaluate additional module features.
