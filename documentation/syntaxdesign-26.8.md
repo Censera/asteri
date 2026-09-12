@@ -118,6 +118,9 @@ length this; // 4
 format this "and" that "."; // this and that.
 format("{} and {}.", this, that); // this and that.
 
+// Sub String
+let hello string = "Hello"[1..3]; // ell
+
 // Shadowing is allowed
 
 // read gets the input from stdin and outputs it
