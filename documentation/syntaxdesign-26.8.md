@@ -63,11 +63,11 @@ if condition {
 }
 
 // Shortened
-if condition then statement;
-if condition then break
-
-let something = value if conditon;
-let somethingelse = value if conditon else value;
+// <expr-or-stmt> if condition [else <expr-or-stmt>]
+statement if condition;
+break if condition else continue
+let something = value if condition;
+let somethingelse = value if condition else value;
 
 
 // loops
