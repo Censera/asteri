@@ -1,6 +1,6 @@
 use crate::error::{Error, Stage};
 use crate::lexer::{Token, tokenize};
-use crate::parser::{Import, parse_imports};
+use crate::parser::{Import, ModuleDeclaration, parse_imports, parse_module};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
@@ -35,6 +35,11 @@ impl Compiler {
 
     pub fn tokenize(&self, source: &Source) -> Result<Vec<Token>, Error> {
         tokenize(source.text())
+    }
+
+    pub fn parse_module(&self, source: &Source) -> Result<ModuleDeclaration, Error> {
+        let tokens = self.tokenize(source)?;
+        parse_module(&tokens)
     }
 
     pub fn parse_imports(&self, source: &Source) -> Result<Vec<Import>, Error> {
