@@ -16,9 +16,9 @@ mod tests {
     #[test]
     fn creates_i32_function() {
         let context = Context::create();
-        let module = context.module("test");
-        let function = shortcuts::i32_function(&module, "answer");
-        let handler = shortcuts::handler(&function, &context);
+        let module = context.module("test").unwrap();
+        let function = shortcuts::i32_function(&module, "answer").unwrap();
+        let handler = shortcuts::handler(&function, &context).unwrap();
 
         shortcuts::return_i32(&handler, 42).unwrap();
 
@@ -30,9 +30,9 @@ mod tests {
     #[test]
     fn creates_void_function() {
         let context = Context::create();
-        let module = context.module("test");
-        let function = shortcuts::void_function(&module, "main");
-        let handler = function.handler(&context);
+        let module = context.module("test").unwrap();
+        let function = shortcuts::void_function(&module, "main").unwrap();
+        let handler = function.handler(&context).unwrap();
 
         handler.return_void().unwrap();
 
