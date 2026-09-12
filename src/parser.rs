@@ -993,7 +993,7 @@ fn keyword_name(kind: &TokenKind) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_functions, BinaryOperator, Expression, Statement};
+    use super::{BinaryOperator, Expression, Statement, parse_functions};
     use crate::lexer::tokenize;
 
     fn parse(source: &str) -> Vec<Statement> {
