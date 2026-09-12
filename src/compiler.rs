@@ -1,5 +1,6 @@
 use crate::error::{Error, Stage};
 use crate::lexer::{Token, tokenize};
+use crate::parser::{Import, parse_imports};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
@@ -36,8 +37,13 @@ impl Compiler {
         tokenize(source.text())
     }
 
+    pub fn parse_imports(&self, source: &Source) -> Result<Vec<Import>, Error> {
+        let tokens = self.tokenize(source)?;
+        parse_imports(&tokens)
+    }
+
     pub fn compile(&self, source: Source) -> Result<(), Error> {
-        self.tokenize(&source)?;
+        self.parse_imports(&source)?;
         Err(Error::StageNotImplemented(Stage::Parser))
     }
 }
