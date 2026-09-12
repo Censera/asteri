@@ -3,7 +3,7 @@
 [package]
 name = "astery"
 version = "26.8.0"
-edition = "2021"
+edition = "2024"
 description = "astery the programming language"
 repository = "https://github.com/Censera/astery"
 readme = "README.md"
