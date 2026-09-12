@@ -67,6 +67,8 @@ pub enum Statement {
     While(WhileStatement),
     For(ForStatement),
     Match(MatchStatement),
+    Break(Option<String>),
+    Continue(Option<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,11 +344,37 @@ impl<'a> Parser<'a> {
             Some(TokenKind::While) => Ok(Statement::While(self.parse_while()?)),
             Some(TokenKind::For) => Ok(Statement::For(self.parse_for()?)),
             Some(TokenKind::Match) => Ok(Statement::Match(self.parse_match()?)),
+            Some(TokenKind::Break) => self.parse_break(),
+            Some(TokenKind::Continue) => self.parse_continue(),
             _ => {
                 let expression = self.parse_expression()?;
                 self.consume(TokenKind::Semicolon);
                 Ok(Statement::Expression(expression))
             }
+        }
+    }
+
+    fn parse_break(&mut self) -> Result<Statement, Error> {
+        self.expect(TokenKind::Break)?;
+        let label = self.parse_optional_label()?;
+        self.consume(TokenKind::Semicolon);
+        Ok(Statement::Break(label))
+    }
+
+    fn parse_continue(&mut self) -> Result<Statement, Error> {
+        self.expect(TokenKind::Continue)?;
+        let label = self.parse_optional_label()?;
+        self.consume(TokenKind::Semicolon);
+        Ok(Statement::Continue(label))
+    }
+
+    fn parse_optional_label(&mut self) -> Result<Option<String>, Error> {
+        match self.peek_kind() {
+            Some(TokenKind::Label(_)) => match self.advance() {
+                Some(TokenKind::Label(label)) => Ok(Some(label)),
+                _ => unreachable!(),
+            },
+            _ => Ok(None),
         }
     }
 
