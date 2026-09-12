@@ -19,7 +19,7 @@
 - [x] Tokenize collection delimiters and literals.
 - [x] Tokenize macro syntax.
 - [x] Tokenize embedded C blocks.
-- [ ] Tokenize union type syntax and qualified type separators (`::`).
+- [x] Tokenize union type syntax.
 
 ## Parser
 
@@ -40,7 +40,6 @@
 - [ ] Parse structs and fields.
 - [ ] Parse `into` implementations.
 - [ ] Parse user-defined types.
-- [ ] Parse union types.
 - [ ] Parse casts and pointers.
 - [ ] Parse embedded C blocks.
 - [ ] Parse macros and macro calls.
@@ -53,15 +52,13 @@
 - [ ] Check visibility.
 - [ ] Check primitive and user-defined types.
 - [ ] Check arrays, vectors, tuples, and their indexing/access rules.
-- [ ] Check union type construction and compatibility.
-- [ ] Check union member/type narrowing rules.
 - [ ] Resolve overloaded functions.
 - [ ] Resolve `into` implementations and methods.
 - [ ] Check returns.
 - [ ] Check casts.
 - [ ] Check pointer and optional-pointer rules.
 - [ ] Check control-flow targets and labels.
-- [ ] Resolve struct, enum, and union members.
+- [ ] Resolve struct and enum members.
 - [ ] Validate function flags.
 - [ ] Validate string-chain operands.
 - [ ] Validate embedded C boundaries.
@@ -82,7 +79,7 @@
 - [ ] Lower branches and loops.
 - [ ] Lower pointers, allocation, loads, and stores.
 - [ ] Lower arrays, vectors, and tuples.
-- [ ] Lower structs, enums, and unions.
+- [ ] Lower structs and enums.
 - [ ] Lower user-defined types.
 - [ ] Lower embedded C.
 
