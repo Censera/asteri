@@ -270,7 +270,6 @@ print name<index>;
 print name<name>;
 print name<name<index>>;
 ```
-
 ### Tuples
 
 ```rs
