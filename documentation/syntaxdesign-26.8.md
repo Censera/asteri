@@ -95,11 +95,9 @@ for i in 0..=9 {}  // inclusive: 0..9
 
 // String Chains
 // name name name // Spaced Chain "value value value\n"
-// name..name..name.."\n" // Connected Chain "valuevaluevalue\n"
 // Name can be any primitive type
 
 print name name name;
-print name..name..name.."\n";
 print(name name name);
 
 // Names, libraries, flags, and builtins
@@ -115,7 +113,6 @@ let that string = "that";
 print "Hello";
 eprint "Error";
 print "Hello" "world!"; // Hello world!\n
-print "Hello".."world!".."\n"; // Hello world!\n
 sizeof this; // 16
 length this; // 4
 format this "and" that "."; // this and that.
