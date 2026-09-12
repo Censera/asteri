@@ -12,7 +12,7 @@ keywords = ["compiler", "language", "llvm"]
 categories = ["command-line-utilities", "development-tools::compilers"]
 
 [dependencies]
-inkwell = { version = "0.9.0", features = ["llvm20-1"] }
+an-inkwell = "26"
 
 [profile.release]
 opt-level = "z"
