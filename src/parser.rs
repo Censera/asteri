@@ -83,10 +83,7 @@ impl<'a> Parser<'a> {
     fn parse_bindings(mut self) -> Result<Vec<BindingDeclaration>, Error> {
         let mut declarations = Vec::new();
 
-        while matches!(
-            self.peek_kind(),
-            Some(&TokenKind::Let | &TokenKind::Const)
-        ) {
+        while matches!(self.peek_kind(), Some(&TokenKind::Let | &TokenKind::Const)) {
             declarations.push(self.parse_binding_declaration()?);
         }
 
@@ -150,9 +147,8 @@ impl<'a> Parser<'a> {
 
         loop {
             let name = self.expect_binding_name()?;
-            let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::Comma | TokenKind::EqualSign)
-            });
+            let type_tokens = self
+                .parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
             bindings.push(Binding {
                 name,
                 type_tokens,
@@ -176,7 +172,10 @@ impl<'a> Parser<'a> {
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace)
+                matches!(
+                    kind,
+                    TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace
+                )
             });
             self.expect(TokenKind::EqualSign)?;
             let value = self.parse_until_any(&[TokenKind::Comma, TokenKind::CloseBrace])?;
