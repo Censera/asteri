@@ -1,6 +1,11 @@
 use crate::{Error, Token, TokenKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleDeclaration {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Import {
     pub module: Option<String>,
     pub items: Vec<ImportItem>,
@@ -10,6 +15,14 @@ pub struct Import {
 pub struct ImportItem {
     pub name: String,
     pub items: Vec<ImportItem>,
+}
+
+pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
+    let mut parser = Parser { tokens, position: 0 };
+    parser.expect(TokenKind::Mod)?;
+    Ok(ModuleDeclaration {
+        name: parser.expect_identifier()?,
+    })
 }
 
 pub fn parse_imports(tokens: &[Token]) -> Result<Vec<Import>, Error> {
@@ -34,19 +47,18 @@ impl<'a> Parser<'a> {
 
     fn parse_import(&mut self) -> Result<Import, Error> {
         self.expect(TokenKind::Use)?;
+        let module = self.expect_identifier()?;
 
-        if self.peek_kind() == Some(&TokenKind::OpenBrace) {
-            Ok(Import {
-                module: None,
-                items: self.parse_items()?,
-            })
+        let items = if self.peek_kind() == Some(&TokenKind::OpenBrace) {
+            self.parse_items()?
         } else {
-            let module = self.expect_identifier()?;
-            Ok(Import {
-                module: Some(module),
-                items: self.parse_items()?,
-            })
-        }
+            Vec::new()
+        };
+
+        Ok(Import {
+            module: Some(module),
+            items,
+        })
     }
 
     fn parse_items(&mut self) -> Result<Vec<ImportItem>, Error> {
