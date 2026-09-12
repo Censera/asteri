@@ -20,8 +20,8 @@ pub use parser::{Binding, BindingDeclaration, BindingKind, Import, ImportItem, M
 #[cfg(test)]
 mod tests {
     use super::{
-        BindingDeclaration, BindingKind, Compiler, Context, Error, Import, ImportItem,
-        ModuleDeclaration, Source, Stage, Token, TokenKind, shortcuts,
+        BindingKind, Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage,
+        Token, TokenKind, shortcuts,
     };
 
     #[test]
@@ -243,12 +243,8 @@ mod tests {
         assert_eq!(declarations[0].kind, BindingKind::Let);
         assert_eq!(declarations[0].bindings[0].name, "name");
         assert_eq!(
-            declarations[0].bindings[0]
-                .type_tokens
-                .iter()
-                .map(Token::kind)
-                .collect::<Vec<_>>(),
-            vec![&TokenKind::Identifier("string".into())]
+            declarations[0].bindings[0].type_tokens,
+            vec![TokenKind::Identifier("string".into())]
         );
         assert_eq!(declarations[1].kind, BindingKind::Const);
         assert_eq!(declarations[1].bindings[0].name, "count");
