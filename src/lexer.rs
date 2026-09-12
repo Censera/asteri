@@ -97,6 +97,7 @@ pub enum TokenKind {
     Caret,
     Exclamation,
     Colon,
+    DoubleColon,
     Semicolon,
     Comma,
     OpenParen,
@@ -255,6 +256,10 @@ impl<'src> Lexer<'src> {
             }
             b':' => {
                 let kind = match self.peek() {
+                    Some(b':') => {
+                        self.advance();
+                        TokenKind::DoubleColon
+                    }
                     Some(b'&') => {
                         self.advance();
                         TokenKind::BitAnd
