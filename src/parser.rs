@@ -62,6 +62,50 @@ pub enum Statement {
     Binding(BindingDeclaration),
     Return(Option<Expression>),
     Expression(Expression),
+    If(IfStatement),
+    Loop(LoopStatement),
+    While(WhileStatement),
+    For(ForStatement),
+    Match(MatchStatement),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub body: Block,
+    pub elif_blocks: Vec<(Expression, Block)>,
+    pub else_block: Option<Block>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoopStatement {
+    pub label: Option<String>,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForStatement {
+    pub variable: String,
+    pub iterable: Expression,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchStatement {
+    pub value: Expression,
+    pub arms: Vec<MatchArm>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchArm {
+    pub pattern: Expression,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +124,11 @@ pub enum Expression {
     Member {
         value: Box<Expression>,
         name: String,
+    },
+    Range {
+        start: Box<Expression>,
+        end: Box<Expression>,
+        inclusive: bool,
     },
     Unary {
         operator: UnaryOperator,
@@ -288,6 +337,11 @@ impl<'a> Parser<'a> {
                     Ok(Statement::Return(Some(expression)))
                 }
             }
+            Some(TokenKind::If) => Ok(Statement::If(self.parse_if()?)),
+            Some(TokenKind::Loop) => Ok(Statement::Loop(self.parse_loop()?)),
+            Some(TokenKind::While) => Ok(Statement::While(self.parse_while()?)),
+            Some(TokenKind::For) => Ok(Statement::For(self.parse_for()?)),
+            Some(TokenKind::Match) => Ok(Statement::Match(self.parse_match()?)),
             _ => {
                 let expression = self.parse_expression()?;
                 self.consume(TokenKind::Semicolon);
@@ -296,8 +350,105 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_if(&mut self) -> Result<IfStatement, Error> {
+        self.expect(TokenKind::If)?;
+        let condition = self.parse_expression()?;
+        let body = self.parse_block()?;
+        let mut elif_blocks = Vec::new();
+        while self.peek_kind() == Some(&TokenKind::Elif) {
+            self.advance();
+            let condition = self.parse_expression()?;
+            let body = self.parse_block()?;
+            elif_blocks.push((condition, body));
+        }
+        let else_block = if self.peek_kind() == Some(&TokenKind::Else) {
+            self.advance();
+            Some(self.parse_block()?)
+        } else {
+            None
+        };
+        Ok(IfStatement {
+            condition,
+            body,
+            elif_blocks,
+            else_block,
+        })
+    }
+
+    fn parse_loop(&mut self) -> Result<LoopStatement, Error> {
+        self.expect(TokenKind::Loop)?;
+        let label = if let Some(TokenKind::Label(_)) = self.peek_kind() {
+            match self.advance() {
+                Some(TokenKind::Label(label)) => Some(label),
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        };
+        let body = self.parse_block()?;
+        Ok(LoopStatement { label, body })
+    }
+
+    fn parse_while(&mut self) -> Result<WhileStatement, Error> {
+        self.expect(TokenKind::While)?;
+        let condition = self.parse_expression()?;
+        let body = self.parse_block()?;
+        Ok(WhileStatement { condition, body })
+    }
+
+    fn parse_for(&mut self) -> Result<ForStatement, Error> {
+        self.expect(TokenKind::For)?;
+        let variable = self.expect_binding_name()?;
+        self.expect(TokenKind::In)?;
+        let iterable = self.parse_expression()?;
+        let body = self.parse_block()?;
+        Ok(ForStatement {
+            variable,
+            iterable,
+            body,
+        })
+    }
+
+    fn parse_match(&mut self) -> Result<MatchStatement, Error> {
+        self.expect(TokenKind::Match)?;
+        let value = self.parse_expression()?;
+        self.expect(TokenKind::OpenBrace)?;
+        let mut arms = Vec::new();
+        while self.peek_kind() != Some(&TokenKind::CloseBrace) {
+            if self.peek_kind().is_none() {
+                return Err(self.error("unterminated match"));
+            }
+            let pattern = self.parse_expression()?;
+            let body = self.parse_block()?;
+            arms.push(MatchArm { pattern, body });
+            if self.peek_kind() == Some(&TokenKind::Comma) {
+                self.advance();
+            } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {
+                return Err(self.error("expected `,` or `}` in match"));
+            }
+        }
+        self.expect(TokenKind::CloseBrace)?;
+        if arms.is_empty() {
+            return Err(self.error("match requires at least one arm"));
+        }
+        Ok(MatchStatement { value, arms })
+    }
+
     fn parse_expression(&mut self) -> Result<Expression, Error> {
-        self.parse_binary_expression(0)
+        let mut expression = self.parse_binary_expression(0)?;
+        if self.peek_kind() == Some(&TokenKind::Range)
+            || self.peek_kind() == Some(&TokenKind::RangeInclusive)
+        {
+            let inclusive = self.peek_kind() == Some(&TokenKind::RangeInclusive);
+            self.advance();
+            let end = self.parse_binary_expression(0)?;
+            expression = Expression::Range {
+                start: Box::new(expression),
+                end: Box::new(end),
+                inclusive,
+            };
+        }
+        Ok(expression)
     }
 
     fn parse_binary_expression(&mut self, minimum_precedence: u8) -> Result<Expression, Error> {
@@ -437,10 +588,7 @@ impl<'a> Parser<'a> {
             }
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(
-                    kind,
-                    TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis
-                )
+                matches!(kind, TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis)
             });
             if type_tokens.is_empty() {
                 return Err(self.error("expected parameter type"));
@@ -463,8 +611,9 @@ impl<'a> Parser<'a> {
         let mut bindings = Vec::new();
         loop {
             let name = self.expect_binding_name()?;
-            let type_tokens = self
-                .parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
+            let type_tokens = self.parse_type_tokens(|kind| {
+                matches!(kind, TokenKind::Comma | TokenKind::EqualSign)
+            });
             bindings.push(Binding {
                 name,
                 type_tokens,
@@ -485,10 +634,7 @@ impl<'a> Parser<'a> {
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(
-                    kind,
-                    TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace
-                )
+                matches!(kind, TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace)
             });
             self.expect(TokenKind::EqualSign)?;
             let value = self.parse_until_any(&[TokenKind::Comma, TokenKind::CloseBrace])?;
@@ -617,10 +763,7 @@ impl<'a> Parser<'a> {
             } else {
                 Vec::new()
             };
-            items.push(ImportItem {
-                name,
-                items: nested,
-            });
+            items.push(ImportItem { name, items: nested });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
             } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {
