@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn reports_import_parse_errors_with_position() {
         let compiler = Compiler::new();
-        let source = Source::new("main.as", "use math { function, }");
+        let source = Source::new("main.as", "use math { function, 42 }");
         let error = compiler.parse_imports(&source).unwrap_err();
 
         assert_eq!(error.stage(), Some(Stage::Parser));
