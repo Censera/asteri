@@ -21,7 +21,7 @@
 - [x] Parse imports.
 - [x] Parse `let` and `const` bindings.
 - [x] Parse functions and overloads.
-- [ ] Parse blocks and expressions.
+- [x] Parse blocks and expressions.
 - [x] Parse `if`, `elif`, `else`, `loop`, `while`, `for`, and `match`.
 - [ ] Parse `break` and `continue` with labels.
 - [ ] Parse string chains.
