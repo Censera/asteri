@@ -2,15 +2,15 @@ use inkwell::builder::BuilderError;
 
 use crate::{Context, Function, Handler, Module};
 
-pub fn void_function(module: &Module<'_>, name: &str) -> Function<'_> {
+pub fn void_function<'ctx>(module: &'ctx Module<'ctx>, name: &str) -> Function<'ctx> {
     Function::void(module, name)
 }
 
-pub fn i32_function(module: &Module<'_>, name: &str) -> Function<'_> {
+pub fn i32_function<'ctx>(module: &'ctx Module<'ctx>, name: &str) -> Function<'ctx> {
     Function::i32(module, name)
 }
 
-pub fn i64_function(module: &Module<'_>, name: &str) -> Function<'_> {
+pub fn i64_function<'ctx>(module: &'ctx Module<'ctx>, name: &str) -> Function<'ctx> {
     Function::i64(module, name)
 }
 
