@@ -89,6 +89,9 @@ match variable {
 
 // for loop
 for i in items {}
+// range syntax for
+for i in 0..10 {}  // exclusive: 0..9
+for i in 0..=9 {}  // inclusive: 0..9 
 
 // String Chains
 // name name name // Spaced Chain "value value value\n"

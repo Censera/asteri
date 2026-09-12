@@ -53,21 +53,38 @@ pub struct Parameter {
 }
 
 pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
-    let mut parser = Parser { tokens, position: 0 };
+    let mut parser = Parser {
+        tokens,
+        position: 0,
+    };
     parser.expect(TokenKind::Mod)?;
-    Ok(ModuleDeclaration { name: parser.expect_name()? })
+    Ok(ModuleDeclaration {
+        name: parser.expect_name()?,
+    })
 }
 
 pub fn parse_imports(tokens: &[Token]) -> Result<Vec<Import>, Error> {
-    Parser { tokens, position: 0 }.parse_imports()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_imports()
 }
 
 pub fn parse_bindings(tokens: &[Token]) -> Result<Vec<BindingDeclaration>, Error> {
-    Parser { tokens, position: 0 }.parse_bindings()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_bindings()
 }
 
 pub fn parse_functions(tokens: &[Token]) -> Result<Vec<FunctionDeclaration>, Error> {
-    Parser { tokens, position: 0 }.parse_functions()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_functions()
 }
 
 struct Parser<'a> {
@@ -109,7 +126,10 @@ impl<'a> Parser<'a> {
     fn parse_import(&mut self) -> Result<Import, Error> {
         self.expect(TokenKind::Use)?;
         if self.peek_kind() == Some(&TokenKind::OpenBrace) {
-            return Ok(Import { module: None, items: self.parse_items()? });
+            return Ok(Import {
+                module: None,
+                items: self.parse_items()?,
+            });
         }
         let module = self.expect_name()?;
         let items = if self.peek_kind() == Some(&TokenKind::OpenBrace) {
@@ -117,7 +137,10 @@ impl<'a> Parser<'a> {
         } else {
             Vec::new()
         };
-        Ok(Import { module: Some(module), items })
+        Ok(Import {
+            module: Some(module),
+            items,
+        })
     }
 
     fn parse_binding_declaration(&mut self) -> Result<BindingDeclaration, Error> {
@@ -135,7 +158,11 @@ impl<'a> Parser<'a> {
             (bindings, Some(value))
         };
         self.consume(TokenKind::Semicolon);
-        Ok(BindingDeclaration { kind, bindings, value })
+        Ok(BindingDeclaration {
+            kind,
+            bindings,
+            value,
+        })
     }
 
     fn parse_function(&mut self) -> Result<FunctionDeclaration, Error> {
@@ -153,7 +180,13 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::OpenBrace)?;
         let body = self.parse_balanced_body()?;
         self.expect(TokenKind::CloseBrace)?;
-        Ok(FunctionDeclaration { name, return_type, parameters, flags, body })
+        Ok(FunctionDeclaration {
+            name,
+            return_type,
+            parameters,
+            flags,
+            body,
+        })
     }
 
     fn parse_flags(&mut self) -> Result<Vec<String>, Error> {
@@ -179,7 +212,10 @@ impl<'a> Parser<'a> {
 
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis)
+                matches!(
+                    kind,
+                    TokenKind::Comma | TokenKind::CloseParen | TokenKind::Ellipsis
+                )
             });
             if type_tokens.is_empty() {
                 return Err(self.error("expected parameter type"));
@@ -218,8 +254,13 @@ impl<'a> Parser<'a> {
         let mut bindings = Vec::new();
         loop {
             let name = self.expect_binding_name()?;
-            let type_tokens = self.parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
-            bindings.push(Binding { name, type_tokens, value: None });
+            let type_tokens = self
+                .parse_type_tokens(|kind| matches!(kind, TokenKind::Comma | TokenKind::EqualSign));
+            bindings.push(Binding {
+                name,
+                type_tokens,
+                value: None,
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
                 continue;
@@ -235,11 +276,18 @@ impl<'a> Parser<'a> {
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
             let name = self.expect_binding_name()?;
             let type_tokens = self.parse_type_tokens(|kind| {
-                matches!(kind, TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace)
+                matches!(
+                    kind,
+                    TokenKind::EqualSign | TokenKind::Comma | TokenKind::CloseBrace
+                )
             });
             self.expect(TokenKind::EqualSign)?;
             let value = self.parse_until_any(&[TokenKind::Comma, TokenKind::CloseBrace])?;
-            bindings.push(Binding { name, type_tokens, value: Some(value) });
+            bindings.push(Binding {
+                name,
+                type_tokens,
+                value: Some(value),
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
             } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {
@@ -355,8 +403,15 @@ impl<'a> Parser<'a> {
         let mut items = Vec::new();
         while self.peek_kind() != Some(&TokenKind::CloseBrace) {
             let name = self.expect_name()?;
-            let nested = if self.peek_kind() == Some(&TokenKind::OpenBrace) { self.parse_items()? } else { Vec::new() };
-            items.push(ImportItem { name, items: nested });
+            let nested = if self.peek_kind() == Some(&TokenKind::OpenBrace) {
+                self.parse_items()?
+            } else {
+                Vec::new()
+            };
+            items.push(ImportItem {
+                name,
+                items: nested,
+            });
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();
             } else if self.peek_kind() != Some(&TokenKind::CloseBrace) {
@@ -407,9 +462,16 @@ impl<'a> Parser<'a> {
         let (line, column) = token
             .map(|token| (token.line(), token.column()))
             .unwrap_or_else(|| {
-                self.tokens.last().map(|token| (token.line(), token.column() + 1)).unwrap_or((1, 1))
+                self.tokens
+                    .last()
+                    .map(|token| (token.line(), token.column() + 1))
+                    .unwrap_or((1, 1))
             });
-        Error::Parse { line, column, message: message.to_owned() }
+        Error::Parse {
+            line,
+            column,
+            message: message.to_owned(),
+        }
     }
 }
 
