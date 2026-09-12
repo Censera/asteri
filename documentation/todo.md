@@ -45,22 +45,107 @@
 
 ## Semantic analysis
 
-- [ ] Resolve modules and imports.
-- [ ] Resolve names.
-- [ ] Resolve scopes and shadowing.
-- [ ] Check visibility.
-- [ ] Check primitive and user-defined types.
-- [ ] Check arrays, vectors, tuples, and their indexing/access rules.
-- [ ] Resolve overloaded functions.
-- [ ] Resolve `into` implementations and methods.
-- [ ] Check returns.
-- [ ] Check casts.
-- [ ] Check pointer and optional-pointer rules.
-- [ ] Check control-flow targets and labels.
-- [ ] Resolve struct and enum members.
-- [ ] Validate function flags.
-- [ ] Validate string-chain operands.
-- [ ] Validate embedded C boundaries.
+### Names and modules
+
+- [ ] Build the module tree from `mod` declarations.
+- [ ] Resolve imports and imported members.
+- [ ] Resolve every identifier to its declaration.
+- [ ] Detect duplicate declarations in the same scope.
+- [ ] Define and enforce scope boundaries.
+- [ ] Define and enforce shadowing rules.
+- [ ] Check `pub` and `pri` visibility across modules and implementations.
+- [ ] Report unresolved names with their source location and scope context.
+
+### Types
+
+- [ ] Define the semantic type model for all primitive types.
+- [ ] Define the semantic representation of `None`.
+- [ ] Define pointer and optional-pointer types.
+- [ ] Define arrays, vectors, and tuples as distinct semantic types.
+- [ ] Register and resolve user-defined types.
+- [ ] Register and resolve enums and their variants.
+- [ ] Register and resolve structs and their fields.
+- [ ] Check explicit type annotations against inferred values.
+- [ ] Define which values can be inferred without an annotation.
+- [ ] Check literal types and valid literal conversions.
+- [ ] Check operator operand types and result types.
+- [ ] Check comparison and logical operator rules.
+- [ ] Check indexing and member-access types.
+- [ ] Check range endpoint types and inclusive-range rules.
+- [ ] Check assignment and binding type compatibility.
+
+### Functions and calls
+
+- [ ] Build function signatures from names, parameters, and return types.
+- [ ] Register overloaded functions without losing distinct signatures.
+- [ ] Resolve a call against the available overloads.
+- [ ] Define overload resolution and ambiguity rules.
+- [ ] Check argument count and argument types.
+- [ ] Check return expressions against the declared return type.
+- [ ] Check functions that do not return a value.
+- [ ] Resolve member calls through `into` implementations.
+- [ ] Check method receiver/member compatibility.
+- [ ] Validate variadic arguments for `@lossely` functions.
+- [ ] Validate the restricted call form introduced by `@striped`.
+- [ ] Validate supported and reserved function flags.
+
+### Expressions and values
+
+- [ ] Type-check every expression recursively.
+- [ ] Define expression result types for unary and binary operators.
+- [ ] Define how `None` participates in expressions and bindings.
+- [ ] Define evaluation rules for shortened conditional expressions.
+- [ ] Check `if` and `elif` conditions are valid conditions.
+- [ ] Check `while` conditions are valid conditions.
+- [ ] Check `for` iteration values and loop variables.
+- [ ] Check `match` values and pattern compatibility.
+- [ ] Check string-chain operands and conversion rules.
+- [ ] Define member access for values, structs, enums, and supported types.
+
+### Casts and pointers
+
+- [ ] Define the complete set of valid casts.
+- [ ] Reject invalid casts with the source and target types.
+- [ ] Check pointer construction and referenced value types.
+- [ ] Check optional-pointer construction with `None`.
+- [ ] Check pointer dereference rules when added to the expression model.
+- [ ] Define pointer equality/comparison rules if supported.
+- [ ] Preserve pointer nullability through expressions and calls.
+
+### Control flow
+
+- [ ] Validate `break` targets.
+- [ ] Validate `continue` targets.
+- [ ] Resolve named loop labels.
+- [ ] Reject references to labels outside their valid loop scope.
+- [ ] Reject `break` and `continue` outside loops.
+- [ ] Define control-flow reachability for returns and loop exits.
+- [ ] Check functions return correctly on every required path.
+
+### Collections and aggregates
+
+- [ ] Check array element types and declared sizes.
+- [ ] Check vector element types.
+- [ ] Check tuple element count and positional types.
+- [ ] Check destructuring bindings against aggregate shapes.
+- [ ] Check aggregate literals against their expected types.
+
+### User-defined types and implementations
+
+- [ ] Check enum variant declarations and payload types.
+- [ ] Check struct field declarations and duplicate fields.
+- [ ] Check `into` implementations target valid types.
+- [ ] Check implementation member visibility and signatures.
+- [ ] Reject conflicting or duplicate implementation members.
+- [ ] Resolve associated functions and members on user-defined types.
+
+### Compiler-recognized behavior
+
+- [ ] Validate compiler-recognized function flags before lowering.
+- [ ] Define which flags affect syntax, typing, code generation, or diagnostics.
+- [ ] Define builtin operations that require compiler support separately from standard-library identifiers.
+- [ ] Validate `embed C` boundaries and required compile-time constraints.
+- [ ] Validate macro inputs and expansion boundaries when macros are enabled.
 
 ## Backend
 
