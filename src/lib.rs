@@ -145,12 +145,19 @@ mod tests {
     fn parses_direct_imports() {
         let compiler = Compiler::new();
         let imports = compiler
-            .parse_imports(&Source::new("main.as", "use { mygame, standard, memory, engine }"))
+            .parse_imports(&Source::new(
+                "main.as",
+                "use { mygame, standard, memory, engine }",
+            ))
             .unwrap();
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].module, None);
         assert_eq!(
-            imports[0].items.iter().map(|item| item.name.as_str()).collect::<Vec<_>>(),
+            imports[0]
+                .items
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
             vec!["mygame", "standard", "memory", "engine"]
         );
     }
@@ -176,7 +183,9 @@ mod tests {
     #[test]
     fn parses_bare_import() {
         let compiler = Compiler::new();
-        let imports = compiler.parse_imports(&Source::new("main.as", "use standard")).unwrap();
+        let imports = compiler
+            .parse_imports(&Source::new("main.as", "use standard"))
+            .unwrap();
         assert_eq!(
             imports,
             vec![Import {
@@ -192,7 +201,12 @@ mod tests {
         let module = compiler
             .parse_module(&Source::new("main.as", "mod mygame"))
             .unwrap();
-        assert_eq!(module, ModuleDeclaration { name: "mygame".into() });
+        assert_eq!(
+            module,
+            ModuleDeclaration {
+                name: "mygame".into()
+            }
+        );
     }
 
     #[test]
@@ -329,7 +343,10 @@ mod tests {
             .unwrap();
         assert_eq!(functions[0].body.statements.len(), 1);
         match &functions[0].body.statements[0] {
-            Statement::Return(Some(Expression::Call { function, arguments })) => {
+            Statement::Return(Some(Expression::Call {
+                function,
+                arguments,
+            })) => {
                 assert_eq!(arguments.len(), 1);
                 assert!(matches!(function.as_ref(), Expression::Member { .. }));
             }
