@@ -1,7 +1,0 @@
-- [x] Lexer: _Turns raw text into tokens._
-- [x] Parser: _Turns tokens into a structure (AST)._
-- [x] Type checker: _Checking grammar._
-- [ ] LLVM backend (via Inkwell): _(AST) to machine code._
-- [ ] FFI to C: _Calling libraries._
-- [ ] Bindings to raylib: _Wrap calls._
-- [ ] Tiny game: _Tetris or Snake._

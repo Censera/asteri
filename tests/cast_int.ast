@@ -1,4 +1,0 @@
-fn: int main() {
-    let x: i8 = 7;
-    return x -> i32; // int <-> i32
-}
