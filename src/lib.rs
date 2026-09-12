@@ -355,6 +355,24 @@ mod tests {
     }
 
     #[test]
+    fn parses_break_and_continue_labels() {
+        let compiler = Compiler::new();
+        let source = Source::new(
+            "main.as",
+            "fn main() { break; continue 'outer; break 'outer; }",
+        );
+        let functions = compiler.parse_functions(&source).unwrap();
+        assert_eq!(
+            functions[0].body.statements,
+            vec![
+                Statement::Break(None),
+                Statement::Continue(Some("outer".into())),
+                Statement::Break(Some("outer".into())),
+            ]
+        );
+    }
+
+    #[test]
     fn reports_function_parse_errors() {
         let compiler = Compiler::new();
         let error = compiler
