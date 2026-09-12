@@ -517,6 +517,9 @@ impl<'a> Parser<'a> {
     fn parse_binary_expression(&mut self, minimum_precedence: u8) -> Result<Expression, Error> {
         let mut left = self.parse_unary_expression()?;
         while let Some((operator, precedence)) = self.binary_operator() {
+            if operator == BinaryOperator::Greater && self.greater_terminates_expression() {
+                break;
+            }
             if precedence < minimum_precedence {
                 break;
             }
@@ -529,6 +532,20 @@ impl<'a> Parser<'a> {
             };
         }
         Ok(left)
+    }
+
+    fn greater_terminates_expression(&self) -> bool {
+        matches!(
+            self.tokens.get(self.position + 1).map(Token::kind),
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::CloseParen
+                    | TokenKind::CloseBracket
+                    | TokenKind::CloseBrace
+                    | TokenKind::Greater
+            )
+        )
     }
 
     fn parse_unary_expression(&mut self) -> Result<Expression, Error> {
@@ -1025,6 +1042,33 @@ mod tests {
                 Expression::Integer("2".into()),
                 Expression::Integer("3".into()),
             ]))]
+        );
+    }
+
+    #[test]
+    fn parses_vector_with_expression_elements() {
+        assert_eq!(
+            parse("fn main() { <1 + 2, 3>; }"),
+            vec![Statement::Expression(Expression::Vector(vec![
+                Expression::Binary {
+                    left: Box::new(Expression::Integer("1".into())),
+                    operator: BinaryOperator::Add,
+                    right: Box::new(Expression::Integer("2".into())),
+                },
+                Expression::Integer("3".into()),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_greater_than_comparison() {
+        assert_eq!(
+            parse("fn main() { 3 > 2; }"),
+            vec![Statement::Expression(Expression::Binary {
+                left: Box::new(Expression::Integer("3".into())),
+                operator: BinaryOperator::Greater,
+                right: Box::new(Expression::Integer("2".into())),
+            })]
         );
     }
 
