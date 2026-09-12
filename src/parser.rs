@@ -18,7 +18,10 @@ pub struct ImportItem {
 }
 
 pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
-    let mut parser = Parser { tokens, position: 0 };
+    let mut parser = Parser {
+        tokens,
+        position: 0,
+    };
     parser.expect(TokenKind::Mod)?;
     Ok(ModuleDeclaration {
         name: parser.expect_identifier()?,
@@ -26,7 +29,11 @@ pub fn parse_module(tokens: &[Token]) -> Result<ModuleDeclaration, Error> {
 }
 
 pub fn parse_imports(tokens: &[Token]) -> Result<Vec<Import>, Error> {
-    Parser { tokens, position: 0 }.parse_imports()
+    Parser {
+        tokens,
+        position: 0,
+    }
+    .parse_imports()
 }
 
 struct Parser<'a> {
@@ -72,7 +79,10 @@ impl<'a> Parser<'a> {
             } else {
                 Vec::new()
             };
-            items.push(ImportItem { name, items: nested });
+            items.push(ImportItem {
+                name,
+                items: nested,
+            });
 
             if self.peek_kind() == Some(&TokenKind::Comma) {
                 self.advance();

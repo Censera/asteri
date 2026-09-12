@@ -19,7 +19,10 @@ pub use parser::{Import, ImportItem, ModuleDeclaration};
 
 #[cfg(test)]
 mod tests {
-    use super::{Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage, Token, TokenKind, shortcuts};
+    use super::{
+        Compiler, Context, Error, Import, ImportItem, ModuleDeclaration, Source, Stage, Token,
+        TokenKind, shortcuts,
+    };
 
     #[test]
     fn creates_i32_function() {
@@ -185,7 +188,12 @@ mod tests {
         let source = Source::new("main.as", "mod mygame");
         let module = compiler.parse_module(&source).unwrap();
 
-        assert_eq!(module, ModuleDeclaration { name: "mygame".into() });
+        assert_eq!(
+            module,
+            ModuleDeclaration {
+                name: "mygame".into()
+            }
+        );
     }
 
     #[test]
