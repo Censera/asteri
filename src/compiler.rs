@@ -1,7 +1,8 @@
 use crate::error::{Error, Stage};
 use crate::lexer::{Token, tokenize};
 use crate::parser::{
-    BindingDeclaration, Import, ModuleDeclaration, parse_bindings, parse_imports, parse_module,
+    BindingDeclaration, FunctionDeclaration, Import, ModuleDeclaration, parse_bindings,
+    parse_functions, parse_imports, parse_module,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +53,11 @@ impl Compiler {
     pub fn parse_bindings(&self, source: &Source) -> Result<Vec<BindingDeclaration>, Error> {
         let tokens = self.tokenize(source)?;
         parse_bindings(&tokens)
+    }
+
+    pub fn parse_functions(&self, source: &Source) -> Result<Vec<FunctionDeclaration>, Error> {
+        let tokens = self.tokenize(source)?;
+        parse_functions(&tokens)
     }
 
     pub fn compile(&self, source: Source) -> Result<(), Error> {
