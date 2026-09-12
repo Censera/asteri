@@ -1,6 +1,6 @@
-use an_inkwell::{Module as LLVMModule, Type};
+use an_inkwell::Module as LLVMModule;
 
-use crate::{Context, Function};
+use crate::Context;
 
 pub struct Module<'ctx> {
     context: &'ctx Context,
@@ -15,13 +15,6 @@ impl<'ctx> Module<'ctx> {
 
     pub fn context(&self) -> &Context {
         self.context
-    }
-
-    pub fn function(&self, name: &str) -> Result<Function<'ctx>, an_inkwell::Error> {
-        let function_type = Type::void(self.context.as_raw());
-        self.raw
-            .function(name, &function_type)
-            .map(Function::from_raw)
     }
 
     pub fn as_ir(&self) -> String {
