@@ -31,7 +31,6 @@ pub enum TokenKind {
     String(String),
     Character(char),
     Label(String),
-
     Mod,
     Use,
     Let,
@@ -65,7 +64,6 @@ pub enum TokenKind {
     True,
     False,
     None,
-
     At,
     Arrow,
     And,
@@ -138,18 +136,15 @@ impl<'src> Lexer<'src> {
 
     fn tokenize(mut self) -> Result<Vec<Token>, crate::Error> {
         let mut tokens = Vec::new();
-
         while !self.is_at_end() {
-            if self.skip_whitespace_and_comments() {
-                continue;
+            self.skip_whitespace_and_comments();
+            if self.is_at_end() {
+                break;
             }
-
             let line = self.line;
             let column = self.column;
-            let token = self.next_token(line, column)?;
-            tokens.push(token);
+            tokens.push(self.next_token(line, column)?);
         }
-
         Ok(tokens)
     }
 
@@ -159,7 +154,6 @@ impl<'src> Lexer<'src> {
         if is_identifier_start(byte) {
             return Ok(self.identifier(byte, line, column));
         }
-
         if byte.is_ascii_digit() {
             return self.number(byte, line, column);
         }
@@ -167,99 +161,136 @@ impl<'src> Lexer<'src> {
         match byte {
             b'"' => self.string(line, column),
             b'\'' => self.apostrophe_token(line, column),
-            b'@' => Ok(Token::new(TokenKind::At, line, column)),
-            b';' => Ok(Token::new(TokenKind::Semicolon, line, column)),
-            b',' => Ok(Token::new(TokenKind::Comma, line, column)),
-            b'(' => Ok(Token::new(TokenKind::OpenParen, line, column)),
-            b')' => Ok(Token::new(TokenKind::CloseParen, line, column)),
-            b'{' => Ok(Token::new(TokenKind::OpenBrace, line, column)),
-            b'}' => Ok(Token::new(TokenKind::CloseBrace, line, column)),
-            b'[' => Ok(Token::new(TokenKind::OpenBracket, line, column)),
-            b']' => Ok(Token::new(TokenKind::CloseBracket, line, column)),
-            b'<' => self.operator(TokenKind::Less, TokenKind::LessEqual, b'=', line, column),
-            b'>' => self.operator(
-                TokenKind::Greater,
-                TokenKind::GreaterEqual,
-                b'=',
-                line,
-                column,
-            ),
-            b'+' => self.double_operator(
-                TokenKind::Increment,
-                TokenKind::AddAssign,
-                TokenKind::Add,
-                b'+',
-                b'=',
-                line,
-                column,
-            ),
-            b'-' => {
-                if self.matches(b'>') {
-                    Ok(Token::new(TokenKind::Arrow, line, column))
+            b'@' => Ok(self.simple(TokenKind::At, line, column)),
+            b';' => Ok(self.simple(TokenKind::Semicolon, line, column)),
+            b',' => Ok(self.simple(TokenKind::Comma, line, column)),
+            b'(' => Ok(self.simple(TokenKind::OpenParen, line, column)),
+            b')' => Ok(self.simple(TokenKind::CloseParen, line, column)),
+            b'{' => Ok(self.simple(TokenKind::OpenBrace, line, column)),
+            b'}' => Ok(self.simple(TokenKind::CloseBrace, line, column)),
+            b'[' => Ok(self.simple(TokenKind::OpenBracket, line, column)),
+            b']' => Ok(self.simple(TokenKind::CloseBracket, line, column)),
+            b'<' => {
+                if self.matches(b'<') {
+                    Ok(self.simple(TokenKind::ShiftLeft, line, column))
                 } else if self.matches(b'=') {
-                    Ok(Token::new(TokenKind::SubAssign, line, column))
-                } else if self.matches(b'-') {
-                    Ok(Token::new(TokenKind::Decrement, line, column))
+                    Ok(self.simple(TokenKind::LessEqual, line, column))
                 } else {
-                    Ok(Token::new(TokenKind::Subtract, line, column))
+                    Ok(self.simple(TokenKind::Less, line, column))
                 }
             }
-            b'*' => self.double_operator(
-                TokenKind::MulAssign,
-                TokenKind::MulAssign,
-                TokenKind::Multiply,
-                b'*',
-                b'=',
-                line,
-                column,
-            ),
-            b'/' => self.double_operator(
-                TokenKind::DivAssign,
-                TokenKind::DivAssign,
-                TokenKind::Divide,
-                b'/',
-                b'=',
-                line,
-                column,
-            ),
+            b'>' => {
+                if self.matches(b'>') {
+                    Ok(self.simple(TokenKind::ShiftRight, line, column))
+                } else if self.matches(b'=') {
+                    Ok(self.simple(TokenKind::GreaterEqual, line, column))
+                } else {
+                    Ok(self.simple(TokenKind::Greater, line, column))
+                }
+            }
+            b'+' => {
+                if self.matches(b'+') {
+                    Ok(self.simple(TokenKind::Increment, line, column))
+                } else if self.matches(b'=') {
+                    Ok(self.simple(TokenKind::AddAssign, line, column))
+                } else {
+                    Ok(self.simple(TokenKind::Add, line, column))
+                }
+            }
+            b'-' => {
+                if self.matches(b'>') {
+                    Ok(self.simple(TokenKind::Arrow, line, column))
+                } else if self.matches(b'-') {
+                    Ok(self.simple(TokenKind::Decrement, line, column))
+                } else if self.matches(b'=') {
+                    Ok(self.simple(TokenKind::SubAssign, line, column))
+                } else {
+                    Ok(self.simple(TokenKind::Subtract, line, column))
+                }
+            }
+            b'*' => {
+                if self.matches(b'=') {
+                    Ok(self.simple(TokenKind::MulAssign, line, column))
+                } else {
+                    Ok(self.simple(TokenKind::Multiply, line, column))
+                }
+            }
+            b'/' => {
+                if self.matches(b'=') {
+                    Ok(self.simple(TokenKind::DivAssign, line, column))
+                } else {
+                    Ok(self.simple(TokenKind::Divide, line, column))
+                }
+            }
             b'=' => {
                 if self.matches(b'=') {
-                    Ok(Token::new(TokenKind::Equal, line, column))
+                    Ok(self.simple(TokenKind::Equal, line, column))
                 } else {
-                    Ok(Token::new(TokenKind::EqualSign, line, column))
+                    Ok(self.simple(TokenKind::EqualSign, line, column))
                 }
             }
             b'!' => {
                 if self.matches(b'=') {
-                    Ok(Token::new(TokenKind::NotEqual, line, column))
+                    Ok(self.simple(TokenKind::NotEqual, line, column))
                 } else {
-                    Ok(Token::new(TokenKind::Exclamation, line, column))
+                    Ok(self.simple(TokenKind::Exclamation, line, column))
                 }
             }
             b'&' => {
                 if self.matches(b'&') {
-                    Ok(Token::new(TokenKind::And, line, column))
+                    Ok(self.simple(TokenKind::And, line, column))
                 } else {
-                    Ok(Token::new(TokenKind::Ampersand, line, column))
+                    Ok(self.simple(TokenKind::Ampersand, line, column))
                 }
             }
             b'|' => {
                 if self.matches(b'|') {
-                    Ok(Token::new(TokenKind::Or, line, column))
+                    Ok(self.simple(TokenKind::Or, line, column))
                 } else {
                     Err(self.lex_error(line, column, "unexpected `|`"))
                 }
             }
             b'^' => {
                 if self.matches(b'^') {
-                    Ok(Token::new(TokenKind::Xor, line, column))
+                    Ok(self.simple(TokenKind::Xor, line, column))
                 } else {
-                    Ok(Token::new(TokenKind::Caret, line, column))
+                    Ok(self.simple(TokenKind::Caret, line, column))
                 }
             }
-            b':' => self.colon_operator(line, column),
-            b'.' => self.dot_operator(line, column),
-            b'?' => Ok(Token::new(TokenKind::Question, line, column)),
+            b':' => {
+                let kind = match self.peek() {
+                    Some(b'&') => {
+                        self.advance();
+                        TokenKind::BitAnd
+                    }
+                    Some(b'|') => {
+                        self.advance();
+                        TokenKind::BitOr
+                    }
+                    Some(b'^') => {
+                        self.advance();
+                        TokenKind::BitXor
+                    }
+                    Some(b'<') => {
+                        self.advance();
+                        TokenKind::BitNot
+                    }
+                    _ => TokenKind::Colon,
+                };
+                Ok(self.simple(kind, line, column))
+            }
+            b'.' => {
+                if self.matches(b'.') {
+                    if self.matches(b'.') {
+                        Ok(self.simple(TokenKind::Ellipsis, line, column))
+                    } else {
+                        Ok(self.simple(TokenKind::Chain, line, column))
+                    }
+                } else {
+                    Ok(self.simple(TokenKind::Dot, line, column))
+                }
+            }
+            b'?' => Ok(self.simple(TokenKind::Question, line, column)),
             _ => Err(self.lex_error(line, column, "unexpected character")),
         }
     }
@@ -273,38 +304,26 @@ impl<'src> Lexer<'src> {
                 break;
             }
         }
-
         Token::new(keyword(&value), line, column)
     }
 
     fn number(&mut self, first: u8, line: usize, column: usize) -> Result<Token, crate::Error> {
         let mut value = String::from(first as char);
-        while let Some(byte) = self.peek() {
-            if byte.is_ascii_digit() {
-                value.push(self.advance().expect("peeked byte must exist") as char);
-            } else {
-                break;
-            }
+        while self.peek().is_some_and(|byte| byte.is_ascii_digit()) {
+            value.push(self.advance().expect("peeked byte must exist") as char);
         }
-
         if self.peek() == Some(b'.') && self.peek_next().is_some_and(|byte| byte.is_ascii_digit()) {
             value.push(self.advance().expect("peeked byte must exist") as char);
-            while let Some(byte) = self.peek() {
-                if byte.is_ascii_digit() {
-                    value.push(self.advance().expect("peeked byte must exist") as char);
-                } else {
-                    break;
-                }
+            while self.peek().is_some_and(|byte| byte.is_ascii_digit()) {
+                value.push(self.advance().expect("peeked byte must exist") as char);
             }
             return Ok(Token::new(TokenKind::Float(value), line, column));
         }
-
         Ok(Token::new(TokenKind::Integer(value), line, column))
     }
 
     fn string(&mut self, line: usize, column: usize) -> Result<Token, crate::Error> {
         let mut value = String::new();
-
         while let Some(byte) = self.advance() {
             match byte {
                 b'"' => return Ok(Token::new(TokenKind::String(value), line, column)),
@@ -313,44 +332,42 @@ impl<'src> Lexer<'src> {
                 byte => value.push(byte as char),
             }
         }
-
         Err(self.lex_error(line, column, "unterminated string literal"))
     }
 
     fn apostrophe_token(&mut self, line: usize, column: usize) -> Result<Token, crate::Error> {
-        match self.peek() {
-            Some(b'\\') => {
-                self.advance();
-                let value = self.escape(line, column)?;
-                if !self.matches(b'\'') {
-                    return Err(self.lex_error(line, column, "unterminated character literal"));
+        if self.peek() == Some(b'\\') {
+            self.advance();
+            let value = self.escape(line, column)?;
+            if !self.matches(b'\'') {
+                return Err(self.lex_error(line, column, "unterminated character literal"));
+            }
+            return Ok(Token::new(TokenKind::Character(value), line, column));
+        }
+
+        let Some(first) = self.peek() else {
+            return Err(self.lex_error(line, column, "unterminated character literal"));
+        };
+
+        if is_identifier_start(first) {
+            let mut value = String::new();
+            while self.peek().is_some_and(is_identifier_continue) {
+                value.push(self.advance().expect("peeked byte must exist") as char);
+            }
+            if self.matches(b'\'') {
+                if value.chars().count() == 1 {
+                    return Ok(Token::new(TokenKind::Character(value.chars().next().unwrap()), line, column));
                 }
-                Ok(Token::new(TokenKind::Character(value), line, column))
+                return Err(self.lex_error(line, column, "character literal must contain one character"));
             }
-            Some(b'\'') => {
-                self.advance();
-                Ok(Token::new(TokenKind::Character('\''), line, column))
-            }
-            Some(byte) if is_identifier_start(byte) => {
-                let mut value = String::new();
-                while let Some(byte) = self.peek() {
-                    if is_identifier_continue(byte) {
-                        value.push(self.advance().expect("peeked byte must exist") as char);
-                    } else {
-                        break;
-                    }
-                }
-                Ok(Token::new(TokenKind::Label(value), line, column))
-            }
-            Some(byte) => {
-                self.advance();
-                if self.matches(b'\'') {
-                    Ok(Token::new(TokenKind::Character(byte as char), line, column))
-                } else {
-                    Err(self.lex_error(line, column, "invalid character literal"))
-                }
-            }
-            None => Err(self.lex_error(line, column, "unterminated character literal")),
+            return Ok(Token::new(TokenKind::Label(value), line, column));
+        }
+
+        let value = self.advance().expect("peeked byte must exist") as char;
+        if self.matches(b'\'') {
+            Ok(Token::new(TokenKind::Character(value), line, column))
+        } else {
+            Err(self.lex_error(line, column, "invalid character literal"))
         }
     }
 
@@ -363,108 +380,32 @@ impl<'src> Lexer<'src> {
             Some(b'\\') => Ok('\\'),
             Some(b'"') => Ok('"'),
             Some(b'\'') => Ok('\''),
-            Some(byte) => Err(self.lex_error(
-                line,
-                column,
-                &format!("unknown escape `\\{}`", byte as char),
-            )),
+            Some(byte) => Err(self.lex_error(line, column, &format!("unknown escape `\\{}`", byte as char))),
             None => Err(self.lex_error(line, column, "unterminated escape sequence")),
         }
     }
 
-    fn operator(
-        &mut self,
-        single: TokenKind,
-        paired: TokenKind,
-        expected: u8,
-        line: usize,
-        column: usize,
-    ) -> Result<Token, crate::Error> {
-        if self.matches(expected) {
-            Ok(Token::new(paired, line, column))
-        } else {
-            Ok(Token::new(single, line, column))
-        }
-    }
-
-    fn double_operator(
-        &mut self,
-        doubled: TokenKind,
-        assigned: TokenKind,
-        single: TokenKind,
-        doubled_byte: u8,
-        assign_byte: u8,
-        line: usize,
-        column: usize,
-    ) -> Result<Token, crate::Error> {
-        if self.matches(doubled_byte) {
-            Ok(Token::new(doubled, line, column))
-        } else if self.matches(assign_byte) {
-            Ok(Token::new(assigned, line, column))
-        } else {
-            Ok(Token::new(single, line, column))
-        }
-    }
-
-    fn colon_operator(&mut self, line: usize, column: usize) -> Result<Token, crate::Error> {
-        let token = match self.peek() {
-            Some(b'&') => {
-                self.advance();
-                TokenKind::BitAnd
-            }
-            Some(b'|') => {
-                self.advance();
-                TokenKind::BitOr
-            }
-            Some(b'^') => {
-                self.advance();
-                TokenKind::BitXor
-            }
-            Some(b'<') => {
-                self.advance();
-                TokenKind::BitNot
-            }
-            _ => TokenKind::Colon,
-        };
-        Ok(Token::new(token, line, column))
-    }
-
-    fn dot_operator(&mut self, line: usize, column: usize) -> Result<Token, crate::Error> {
-        if self.matches(b'.') {
-            if self.matches(b'.') {
-                Ok(Token::new(TokenKind::Ellipsis, line, column))
-            } else {
-                Ok(Token::new(TokenKind::Chain, line, column))
-            }
-        } else {
-            Ok(Token::new(TokenKind::Dot, line, column))
-        }
-    }
-
-    fn skip_whitespace_and_comments(&mut self) -> bool {
-        let mut skipped = false;
-
+    fn skip_whitespace_and_comments(&mut self) {
         loop {
             while matches!(self.peek(), Some(b' ' | b'\t' | b'\r' | b'\n')) {
-                skipped = true;
                 self.advance();
             }
-
             if self.peek() == Some(b'/') && self.peek_next() == Some(b'/') {
-                skipped = true;
                 self.advance();
                 self.advance();
-                while let Some(byte) = self.peek() {
-                    self.advance();
+                while let Some(byte) = self.advance() {
                     if byte == b'\n' {
                         break;
                     }
                 }
                 continue;
             }
-
-            return skipped;
+            break;
         }
+    }
+
+    fn simple(&self, kind: TokenKind, line: usize, column: usize) -> Token {
+        Token::new(kind, line, column)
     }
 
     fn is_at_end(&self) -> bool {
