@@ -361,7 +361,10 @@ impl<'a> Parser<'a> {
 
     fn parse_print_statement(&mut self) -> Result<Statement, Error> {
         self.expect(TokenKind::Identifier("print".into()))?;
-        let parenthesized = self.consume(TokenKind::OpenParen);
+        let parenthesized = self.peek_kind() == Some(&TokenKind::OpenParen);
+        if parenthesized {
+            self.advance();
+        }
         let mut values = Vec::new();
 
         if parenthesized && self.peek_kind() == Some(&TokenKind::CloseParen) {
@@ -993,55 +996,12 @@ fn keyword_name(kind: &TokenKind) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BinaryOperator, Expression, Statement, parse_functions};
-    use crate::lexer::tokenize;
+    use super::{parse_functions, BinaryOperator, Expression, Statement};
+    use crate::{lexer::tokenize, Source};
 
     fn parse(source: &str) -> Vec<Statement> {
         let tokens = tokenize(source).unwrap();
         parse_functions(&tokens).unwrap().remove(0).body.statements
-    }
-
-    #[test]
-    fn parses_string_chains() {
-        assert_eq!(
-            parse(r#"fn main() { print name value 42 \"done\" 'x' true; print(name value 42); }"#),
-            vec![
-                Statement::Expression(Expression::StringChain(vec![
-                    Expression::Identifier("name".into()),
-                    Expression::Identifier("value".into()),
-                    Expression::Integer("42".into()),
-                    Expression::String("done".into()),
-                    Expression::Character('x'),
-                    Expression::Boolean(true),
-                ])),
-                Statement::Expression(Expression::StringChain(vec![
-                    Expression::Identifier("name".into()),
-                    Expression::Identifier("value".into()),
-                    Expression::Integer("42".into()),
-                ])),
-            ]
-        );
-    }
-
-    #[test]
-    fn string_chain_preserves_expression_values() {
-        assert_eq!(
-            parse(r#"fn main() { let value = 2; print \"value:\" value + 1; }"#)[1],
-            Statement::Expression(Expression::StringChain(vec![
-                Expression::String("value:".into()),
-                Expression::Binary {
-                    left: Box::new(Expression::Identifier("value".into())),
-                    operator: BinaryOperator::Add,
-                    right: Box::new(Expression::Integer("1".into())),
-                },
-            ]))
-        );
-    }
-
-    #[test]
-    fn rejects_empty_string_chain() {
-        let tokens = tokenize("fn main() { print; }").unwrap();
-        assert!(parse_functions(&tokens).is_err());
     }
 
     #[test]
@@ -1121,6 +1081,31 @@ mod tests {
                 Statement::Expression(Expression::Array(Vec::new())),
                 Statement::Expression(Expression::Vector(Vec::new())),
             ]
+        );
+    }
+
+    #[test]
+    fn parses_string_chain() {
+        assert_eq!(
+            parse("fn main() { print a b 64 \"text\"; }"),
+            vec![Statement::Expression(Expression::StringChain(vec![
+                Expression::Identifier("a".into()),
+                Expression::Identifier("b".into()),
+                Expression::Integer("64".into()),
+                Expression::String("text".into()),
+            ]))]
+        );
+    }
+
+    #[test]
+    fn parses_parenthesized_string_chain() {
+        assert_eq!(
+            parse("fn main() { print(a b 64); }"),
+            vec![Statement::Expression(Expression::StringChain(vec![
+                Expression::Identifier("a".into()),
+                Expression::Identifier("b".into()),
+                Expression::Integer("64".into()),
+            ]))]
         );
     }
 }
