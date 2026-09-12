@@ -11,7 +11,7 @@ pub use module::Module;
 
 #[cfg(test)]
 mod tests {
-    use super::{shortcuts, Context};
+    use super::{Context, shortcuts};
 
     #[test]
     fn creates_i32_function() {

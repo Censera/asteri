@@ -9,17 +9,11 @@ pub fn void_function<'ctx>(
     Function::void(module, name)
 }
 
-pub fn i32_function<'ctx>(
-    module: &'ctx Module<'ctx>,
-    name: &str,
-) -> Result<Function<'ctx>, Error> {
+pub fn i32_function<'ctx>(module: &'ctx Module<'ctx>, name: &str) -> Result<Function<'ctx>, Error> {
     Function::i32(module, name)
 }
 
-pub fn i64_function<'ctx>(
-    module: &'ctx Module<'ctx>,
-    name: &str,
-) -> Result<Function<'ctx>, Error> {
+pub fn i64_function<'ctx>(module: &'ctx Module<'ctx>, name: &str) -> Result<Function<'ctx>, Error> {
     Function::i64(module, name)
 }
 
